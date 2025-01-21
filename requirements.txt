@@ -1,0 +1,4 @@
+python-dotenv
+python-telegram-bot[job-queue]~=20.0
+ptbcontrib[ptb_jobstores_sqlalchemy] @ git+https://github.com/python-telegram-bot/ptbcontrib.git@main
+psycopg2-binary
