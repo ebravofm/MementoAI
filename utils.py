@@ -7,6 +7,8 @@ from sqlalchemy.orm import sessionmaker
 import pickle
 from config import DATABASE_URL
 
+
+
 tz = pytz.timezone("America/Santiago")  # Adjust according to your timezone
 
 
@@ -59,31 +61,43 @@ def get_jobs():
     Session = sessionmaker(bind=engine)
     session = Session()
 
-    # Reflejar la tabla apscheduler_jobs
-    metadata = MetaData()
-    metadata.reflect(bind=engine)
-    apscheduler_jobs = Table("apscheduler_jobs", metadata, autoload_with=engine)
+    try:
+        # Reflejar la tabla apscheduler_jobs
+        metadata = MetaData()
+        metadata.reflect(bind=engine)
+        
+        if "apscheduler_jobs" not in metadata.tables:
+            print("Table 'apscheduler_jobs' does not exist.")
+            return []
 
-    # Obtener y deserializar los valores de la columna job_state
-    job_states = []
-    with engine.connect() as connection:
-        query = apscheduler_jobs.select().with_only_columns([apscheduler_jobs.c.job_state])
-        result = connection.execute(query)
+        apscheduler_jobs = Table("apscheduler_jobs", metadata, autoload_with=engine)
 
-        for row in result:
-            binary_data = row.job_state  # Ya es de tipo bytes
+        # Obtener y deserializar los valores de la columna job_state
+        job_states = []
+        with engine.connect() as connection:
+            query = apscheduler_jobs.select().with_only_columns([apscheduler_jobs.c.job_state])
+            result = connection.execute(query)
 
-            # Deserializar usando pickle
-            try:
-                deserialized_data = pickle.loads(binary_data)
-                job_states.append(deserialized_data)
-            except Exception as e:
-                print(f"Error deserializing job_state: {e}")
-                job_states.append(None)
+            for row in result:
+                binary_data = row.job_state  # Ya es de tipo bytes
 
-    # Cerrar la sesión
-    session.close()
-    
+                # Deserializar usando pickle
+                try:
+                    deserialized_data = pickle.loads(binary_data)
+                    job_states.append(deserialized_data)
+                except Exception as e:
+                    print(f"Error deserializing job_state: {e}")
+                    job_states.append(None)
+
+    except Exception as e:
+        print(f"An error occurred: {e}")
+        return []
+
+    finally:
+        # Cerrar la sesión
+        session.close()
+
+    # Filtrar valores válidos
     job_states = [job_state for job_state in job_states if job_state is not None]
     
     return job_states

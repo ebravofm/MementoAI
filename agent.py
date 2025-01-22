@@ -51,8 +51,8 @@ def reminder_from_prompt(reminder_query: str) -> LogReminder:
 
     response = chain.invoke({"query": reminder_query})
     
-    response['Time'] = isoparse(response['Time'])
-    
+    response['Time'] = datetime.strptime(response['Time'], "%Y-%m-%dT%H:%M:%SZ") 
+       
     return response
 
 def reminder_to_text(reminder: LogReminder) -> str:

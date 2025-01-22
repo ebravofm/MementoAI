@@ -1,6 +1,6 @@
-from telegram.ext import Application, CommandHandler, ContextTypes, MessageHandler, filters, Defaults
-from telegram.ext import Defaults
+from telegram.ext import Application, CommandHandler, ContextTypes, MessageHandler, filters
 from telegram import Update
+from telegram.constants import ChatAction
 
 from ptbcontrib.ptb_jobstores.sqlalchemy import PTBSQLAlchemyJobStore
 
@@ -14,8 +14,8 @@ from notifications import notify_next_day_jobs_callback, schedule_daily_notifica
 
 from collections import defaultdict
 
+from functools import wraps
 
-Defaults.tzinfo = tz
 
 
 
@@ -28,6 +28,8 @@ Defaults.tzinfo = tz
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Sends explanation on how to use the bot."""
     await update.message.reply_text("Hi! Use /set <seconds> to set a timer")
+    
+
 
 
 async def alarm(context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -68,7 +70,9 @@ async def unset(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 async def set_reminder_timer(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Handles both audio and text messages to set a reminder timer."""
     logger.info("Reminder received")
+
     chat_id = update.effective_message.chat_id
+    await context.bot.send_chat_action(chat_id=update.effective_message.chat_id, action=ChatAction.TYPING)
 
     # Determine the message type (audio or text)
     if update.message.voice:  # Audio message
@@ -102,6 +106,7 @@ async def set_reminder_timer(update: Update, context: ContextTypes.DEFAULT_TYPE)
 
         # Remove existing jobs with the same name and add the new one
         job_removed = remove_job_if_exists(timer_name, context)
+        
         context.job_queue.run_once(
             alarm,
             when=timer_date,
@@ -109,6 +114,7 @@ async def set_reminder_timer(update: Update, context: ContextTypes.DEFAULT_TYPE)
             name=timer_name,
             data=reminder,
         )
+        
         context.job_queue.run_once(
             alarm_minus_30,
             when=timer_date - timedelta(minutes=30),
@@ -143,6 +149,8 @@ async def list_jobs(update, context):
     """Lists all scheduled jobs in the JobQueue grouped by day."""
     # Obtener todos los trabajos de la JobQueue
     jobs = context.job_queue.jobs()
+    jobs = [job for job in jobs if '-30' not in job.name]
+    
 
     if not jobs:
         await update.message.reply_text("No jobs are currently scheduled.")
@@ -167,6 +175,7 @@ async def list_jobs(update, context):
 
     # Enviar el mensaje al usuario
     await update.message.reply_text(message)    
+
 
 async def list_jobs_for_week(update, context, start_date: datetime):
     """Lists all scheduled jobs for the remaining days of the week in the JobQueue."""
@@ -200,11 +209,11 @@ async def list_jobs_for_week(update, context, start_date: datetime):
         f"Jobs for the remaining week from {start_of_remaining_week.strftime('%Y-%m-%d')} to {end_date.strftime('%Y-%m-%d')}:\n{job_list}")
 
 
-    
 async def list_jobs_for_day(update, context, target_date: datetime):
     """Lists all scheduled jobs for a specific day in the JobQueue."""
     # Get all jobs from the JobQueue
     jobs = context.job_queue.jobs()
+    jobs = [job for job in jobs if '-30' not in job.name]
 
     if not jobs:
         await update.message.reply_text("No jobs are currently scheduled.")
