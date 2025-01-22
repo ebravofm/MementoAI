@@ -55,7 +55,7 @@ async def notify_next_day_jobs_callback(context: CallbackContext) -> None:
 def schedule_daily_notification(job_queue, callback, job_name):
     """Schedules a daily task at 11 PM if it is not already scheduled."""
     # Hora de las 11 PM en UTC (ajustar si usas una zona horaria diferente)
-    daily_time = time(11, 0, tzinfo=tz)  # 11 PM
+    daily_time = time(23, 0, tzinfo=tz)  # 11 PM
     
     # Verificar si el trabajo ya está programado
     existing_jobs = [job for job in get_jobs() if job['name'] == job_name]

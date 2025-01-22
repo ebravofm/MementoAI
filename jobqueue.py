@@ -268,8 +268,6 @@ async def list_jobs_for_next_week(update, context):
     await list_jobs_for_week(update, context, start_of_next_week)
     
 
-
-
 def main() -> None:
     """Run bot."""
     # Create the Application and pass it your bot's token.
