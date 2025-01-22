@@ -5,7 +5,6 @@ from langchain_openai import ChatOpenAI
 
 from pydantic import BaseModel, Field
 from datetime import datetime
-from dateutil.parser import isoparse
 
 from config import DI_TOKEN
 
