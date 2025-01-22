@@ -5,7 +5,7 @@ import pytz
 from sqlalchemy import create_engine, MetaData, Table
 from sqlalchemy.orm import sessionmaker
 import pickle
-from config import DATABASE_URL
+from config import DATABASE_URL, DI_TOKEN
 
 
 
@@ -31,7 +31,7 @@ async def transcribe_voice(voice_file):
     # Enviar el archivo a la API de OpenAI para transcripción
     audio_buffer.seek(0)  # Asegurarse de que el puntero esté al inicio del archivo
 
-    API_KEY = "cSZCVvh6PZe7bRy8qRtvoDeU3nS9XwdQ"
+    API_KEY = DI_TOKEN
     API_URL = "https://api.deepinfra.com/v1/inference/openai/whisper-large-v3-turbo"
 
 

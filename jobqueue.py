@@ -1,22 +1,15 @@
+from ptbcontrib.ptb_jobstores.sqlalchemy import PTBSQLAlchemyJobStore
 from telegram.ext import Application, CommandHandler, ContextTypes, MessageHandler, filters
 from telegram import Update
 from telegram.constants import ChatAction
 
-from ptbcontrib.ptb_jobstores.sqlalchemy import PTBSQLAlchemyJobStore
-
-from datetime import datetime, timedelta, time
-from utils import transcribe_voice, logger, tz
-
-from agent import reminder_from_prompt, reminder_to_text
-from config import TG_TOKEN, DATABASE_URL
-
-from notifications import notify_next_day_jobs_callback, schedule_daily_notification
-
+from datetime import datetime, timedelta
 from collections import defaultdict
 
-from functools import wraps
-
-
+from notifications import notify_next_day_jobs_callback, schedule_daily_notification
+from agent import reminder_from_prompt, reminder_to_text
+from utils import transcribe_voice, logger, tz
+from config import TG_TOKEN, DATABASE_URL
 
 
 # Define a few command handlers. These usually take the two arguments update and
@@ -27,10 +20,25 @@ from functools import wraps
 # we decided to have it present as context.
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Sends explanation on how to use the bot."""
-    await update.message.reply_text("Hi! Use /set <seconds> to set a timer")
+    await update.message.reply_text("""¡Hola! Aquí tienes los comandos disponibles para interactuar con el bot:
+
+*Comandos básicos:*
+- **`/start`**: Inicia el bot y muestra un mensaje de bienvenida.
+- **`/help`**: Muestra esta lista de comandos y su descripción.
+
+*Gestión de recordatorios:*
+- **`/list`**: Muestra todos los trabajos (tareas) programados en el sistema.
+- **`/list_day`**: Muestra las tareas programadas para hoy.
+- **`/list_next_day`**: Muestra las tareas programadas para el día siguiente.
+- **`/list_week`**: Muestra las tareas pendientes para el resto de la semana, desde el día actual hasta el domingo.
+- **`/list_next_week`**: Muestra las tareas programadas para la próxima semana completa (de lunes a domingo).
+
+*Creación de recordatorios:*
+- Puedes crear recordatorios enviando un mensaje de texto o un mensaje de voz. El bot procesará la información y programará un recordatorio según el contenido proporcionado.
+
+*Notificaciones automáticas:*
+- Cada día, a las 11:00 PM, recibirás una notificación con las tareas programadas para el día siguiente.""", parse_mode="markdown")
     
-
-
 
 async def alarm(context: ContextTypes.DEFAULT_TYPE) -> None:
     """Send the alarm message."""
@@ -164,17 +172,17 @@ async def list_jobs(update, context):
             jobs_by_day[job_day].append(job)
 
     # Formatear la lista de trabajos por día
-    message = "Scheduled Jobs:\n"
+    message = "*Scheduled Jobs:*\n"
     for day, jobs in sorted(jobs_by_day.items()):
         day_str = day.strftime("%A %d %B")  # Ejemplo: Tuesday 23 January 2025
-        message += f"\n{day_str}:\n"
+        message += f"\n*{day_str}*:\n"
         message += "\n".join(
             [f"  - {job.data['Time'].strftime('%H:%M')}: {job.data['Title']}" for job in jobs]
         )
         message += "\n"
 
     # Enviar el mensaje al usuario
-    await update.message.reply_text(message)    
+    await update.message.reply_text(message, parse_mode="markdown")
 
 
 async def list_jobs_for_week(update, context, start_date: datetime):
@@ -283,7 +291,6 @@ def main() -> None:
 
     # on different commands - answer in Telegram
     application.add_handler(CommandHandler(["start", "help"], start))
-    application.add_handler(CommandHandler("unset", unset))
     application.add_handler(CommandHandler("list", list_jobs))
     application.add_handler(MessageHandler(filters.VOICE | (filters.TEXT & ~filters.COMMAND), set_reminder_timer))
     application.add_handler(CommandHandler("list_day", list_jobs_for_current_day))
@@ -294,8 +301,6 @@ def main() -> None:
 
     # Run the bot until the user presses Ctrl-C
     application.run_polling(allowed_updates=Update.ALL_TYPES)
-    
-
 
 
 if __name__ == "__main__":
