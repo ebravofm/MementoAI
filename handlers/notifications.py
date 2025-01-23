@@ -1,6 +1,7 @@
 from telegram.ext import CallbackContext
 from datetime import datetime, timedelta, time
-from utils import logger, tz, get_jobs
+from utils.logger import logger, tz
+from handlers.jobs import get_jobs
 
     
 async def notify_next_day_jobs(update, context):
