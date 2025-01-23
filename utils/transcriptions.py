@@ -1,11 +1,12 @@
 from telegram.ext import ContextTypes
 from telegram import Update
+
 from utils.logger import logger
 from config import DI_TOKEN
+
 import requests
 import io
-        
-        
+
 
 async def transcribe_voice(voice_file):
 

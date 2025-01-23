@@ -1,13 +1,15 @@
-from ptbcontrib.ptb_jobstores.sqlalchemy import PTBSQLAlchemyJobStore
 from telegram.ext import Application, CommandHandler, MessageHandler, filters
 from telegram import Update
 
-
-from handlers.notifications import notify_next_day_jobs_callback, schedule_daily_notification
-from config import TG_TOKEN, DATABASE_URL
-from handlers.commands import start
 from handlers.jobs import list_jobs, list_jobs_for_current_day, list_jobs_for_next_day, list_jobs_for_current_week, list_jobs_for_next_week
+from handlers.notifications import notify_next_day_jobs_callback, schedule_daily_notification
 from handlers.reminders import set_reminder_timer, alarm, alarm_minus_30
+from handlers.commands import start
+
+from config import TG_TOKEN, DATABASE_URL
+
+from ptbcontrib.ptb_jobstores.sqlalchemy import PTBSQLAlchemyJobStore
+
 
 # Define a few command handlers. These usually take the two arguments update and
 # context.
@@ -15,8 +17,6 @@ from handlers.reminders import set_reminder_timer, alarm, alarm_minus_30
 # since context is an unused local variable.
 # This being an example and not having context present confusing beginners,
 # we decided to have it present as context.
-
-
 
 def main() -> None:
     """Run bot."""
@@ -60,4 +60,10 @@ if __name__ == "__main__":
 # 2. send voice message
 # 3. list jobs
 # 4. list jobs for day
+# 5 wait for reminder
 
+
+# TODO:
+#     Delete Command
+#     List command
+#     error handling on agent request, (retry, inform user)

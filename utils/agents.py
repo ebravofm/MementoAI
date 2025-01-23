@@ -1,13 +1,12 @@
 from langchain_core.output_parsers import JsonOutputParser
-from langchain.globals import set_debug, set_verbose
 from langchain_core.prompts import PromptTemplate
 from langchain_openai import ChatOpenAI
-
-from pydantic import BaseModel, Field
-from datetime import datetime
+from langchain.globals import set_debug
 
 from config import DI_TOKEN
 
+from pydantic import BaseModel, Field
+from datetime import datetime
 
 
 #set_debug(True)
@@ -51,15 +50,18 @@ def reminder_from_prompt(reminder_query: str) -> LogReminder:
 
     response = chain.invoke({"query": reminder_query})
     
-    response['Time'] = datetime.strptime(response['Time'], "%Y-%m-%dT%H:%M:%SZ") 
-       
+    try:
+        response['Time'] = datetime.strptime(response['Time'], "%Y-%m-%dT%H:%M:%SZ") 
+    except ValueError:
+        response['Time'] = datetime.strptime(response['Time'], "%Y-%m-%dT%H:%M:%S")
+        
     return response
 
 def reminder_to_text(reminder: LogReminder) -> str:
     
     reminder['Time_String'] = reminder['Time'].strftime("%H:%M %d/%m/%Y")
     
-    text = "📆 *Recordatorio*📆"
+    text = "📆 *Recordatorio*📆\n"
     if reminder['Title']:
         text += f"\n*Evento*: {reminder['Title']}"
     if reminder['Time']:

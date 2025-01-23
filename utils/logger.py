@@ -4,7 +4,6 @@ import pytz
 
 tz = pytz.timezone("America/Santiago")  # Adjust according to your timezone
 
-
 # Enable logging
 logging.basicConfig(
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", level=logging.INFO
