@@ -43,6 +43,7 @@ async def audio_handling(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     voice_file = await context.bot.get_file(update.message.voice.file_id)
 
     transcription = await transcribe_voice(voice_file)
+    logger.info(f"Transcription: {transcription}")
     # reminder = reminder_from_prompt(transcription)
     
     return transcription
