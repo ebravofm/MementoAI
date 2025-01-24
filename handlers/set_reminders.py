@@ -1,30 +1,18 @@
-from telegram.constants import ChatAction
 from telegram.ext import ContextTypes
 from telegram import Update
 
 from utils.agents import reminder_from_prompt, reminder_to_text
-from utils.transcriptions import audio_handling
 from handlers.jobs import remove_job_if_exists
 from utils.logger import logger, tz
 
 from datetime import datetime, timedelta
 
 
-async def set_reminder_timer(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Handles both audio and text messages to set a reminder timer."""
-    logger.info("Reminder received")
+async def set_reminder_timer(update: Update, context: ContextTypes.DEFAULT_TYPE, query) -> None:
 
-    chat_id = update.effective_message.chat_id
-    await context.bot.send_chat_action(chat_id=update.effective_message.chat_id, action=ChatAction.TYPING)
-
-    # Determine the message type (audio or text)
-    if update.message.voice:  # Audio message
-        transcription = await audio_handling(update, context)  # Convert audio to text
-    else:  # Text message
-        transcription = update.message.text
-
+    chat_id = update.effective_chat.id
     # Generate reminder from the text
-    reminder = reminder_from_prompt(transcription)
+    reminder = reminder_from_prompt(query)
     reminder['chat_id'] = chat_id
 
     logger.info(f"Reminder: {reminder}")
@@ -49,6 +37,7 @@ async def set_reminder_timer(update: Update, context: ContextTypes.DEFAULT_TYPE)
 
         # Remove existing jobs with the same name and add the new one
         job_removed = remove_job_if_exists(timer_name, context)
+        reminder['type'] = 'parent'
         
         context.job_queue.run_once(
             alarm,
@@ -58,11 +47,12 @@ async def set_reminder_timer(update: Update, context: ContextTypes.DEFAULT_TYPE)
             data=reminder,
         )
         
+        reminder['type'] = '-30'
         context.job_queue.run_once(
             alarm_minus_30,
             when=timer_date - timedelta(minutes=30),
             chat_id=chat_id,
-            name=f"{timer_name} -30",
+            name=timer_name,
             data=reminder,
         )
 

@@ -40,7 +40,6 @@ async def transcribe_voice(voice_file):
 
 async def audio_handling(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Echo the user message."""
-    logger.info("Audio received")
     voice_file = await context.bot.get_file(update.message.voice.file_id)
 
     transcription = await transcribe_voice(voice_file)

@@ -9,7 +9,7 @@ from pydantic import BaseModel, Field
 from datetime import datetime
 
 
-#set_debug(True)
+# set_debug(True)
 
 model = ChatOpenAI(temperature=0.7, base_url="https://api.deepinfra.com/v1/openai",
                    api_key=DI_TOKEN,
@@ -40,10 +40,9 @@ def reminder_from_prompt(reminder_query: str) -> LogReminder:
     now = datetime.now()
 
     prompt = PromptTemplate(
-        template="Convert the prompt to the requested format. Note: The reference date and time is {formatted_now}.\n{format_instructions}\n{query}\n",
+        template="Convierte el prompt al formato solicitado. Nota: La fecha y hora de referencia son {formatted_now}.\n{format_instructions}\n{query}\n",
         input_variables=["query"],
-        partial_variables={"format_instructions": parser.get_format_instructions(), "formatted_now": now.strftime("%Y-%m-%dT%H:%M:%SZ")
-    },
+        partial_variables={"format_instructions": parser.get_format_instructions(), "formatted_now": now.strftime("%Y-%m-%dT%H:%M:%SZ")},
     )
 
     chain = prompt | model | parser
@@ -57,11 +56,11 @@ def reminder_from_prompt(reminder_query: str) -> LogReminder:
         
     return response
 
-def reminder_to_text(reminder: LogReminder) -> str:
+def reminder_to_text(reminder: LogReminder, header = "📆 *Recordatorio*📆\n") -> str:
     
     reminder['Time_String'] = reminder['Time'].strftime("%H:%M %d/%m/%Y")
     
-    text = "📆 *Recordatorio*📆\n"
+    text = header
     if reminder['Title']:
         text += f"\n*Evento*: {reminder['Title']}"
     if reminder['Time']:
@@ -75,15 +74,6 @@ def reminder_to_text(reminder: LogReminder) -> str:
 
 
 ### CATEGORIZE ###
-
-
-
-set_debug(True)
-
-model = ChatOpenAI(temperature=0.7, base_url="https://api.deepinfra.com/v1/openai",
-                   api_key=DI_TOKEN,
-                   model='meta-llama/Llama-3.3-70B-Instruct',
-                   max_tokens=100)
 
 
 # Paso 1: Clasificación General
