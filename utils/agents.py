@@ -49,10 +49,8 @@ def reminder_from_prompt(reminder_query: str) -> LogReminder:
 
     response = chain.invoke({"query": reminder_query})
     
-    try:
-        response['Time'] = datetime.strptime(response['Time'], "%Y-%m-%dT%H:%M:%SZ") 
-    except ValueError:
-        response['Time'] = datetime.strptime(response['Time'], "%Y-%m-%dT%H:%M:%S")
+    response['Time'] = datetime.strptime(response['Time'][:19], "%Y-%m-%dT%H:%M:%S")
+
         
     return response
 
