@@ -1,30 +1,180 @@
-from telegram.ext import Application, CommandHandler, MessageHandler, filters, CallbackQueryHandler, ContextTypes
-from telegram import Update
-from telegram.constants import ParseMode
+from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
+from telegram.ext import (
+    Application,
+    CallbackQueryHandler,
+    CommandHandler,
+    ContextTypes,
+    ConversationHandler,
+    MessageHandler,
+    filters,
+)
 
+from handlers.functions import (
+    MENU,
+    ADD,
+    SHOW,
+    DELETE,
+    ADD_PERIODIC,
+    LISTENING_REMINDER,
+    LISTENING_PERIODIC_REMINDER,
+    SHOW_ALL,
+    SHOW_TODAY,
+    SHOW_TOMORROW,
+    SHOW_WEEK,
+    SHOW_BY_NAME,
+    LISTENING_TO_SHOW_BY_NAME,
+    DELETE_ALL,
+    DELETE_BY_NAME,
+    LISTENING_TO_DELETE_BY_NAME,
+    CONFIRM_DELETE_ALL,
+    CONFIRMED_DELETE_ALL,
+    CONFIRM_DELETE_BY_NAME,
+    CONFIRMED_DELETE_BY_NAME,
+    START_OVER,
+    START_WITH_NEW_REPLY,
+    STOPPING,
+    MESSAGE_TEXT,
+    END
+)
 
-from handlers.jobs import list_jobs
-from handlers.notifications import notify_next_day_jobs_callback, schedule_daily_notification, delete_callback
-from handlers.set_reminders import set_reminder_timer, alarm, alarm_minus_30
-from handlers.commands import list_jobs_for_current_day, list_jobs_for_next_day, list_jobs_for_current_week
-from handlers.commands import start, categorize_and_reply
-from utils.logger import logger
+from handlers.functions import (
+    echo,
+    start,
+    add_reminder_timer,
+    show_all,
+    show_today,
+    show_tomorrow,
+    show_week,
+    show_by_name,
+    confirm_delete_all,
+    delete_all,
+    confirm_delete_by_name,
+    delete_by_name,
+    categorize_and_reply
+)
+
+from handlers.notifications import notify_next_day_jobs_callback, schedule_daily_notification
+from ptbcontrib.ptb_jobstores.sqlalchemy import PTBSQLAlchemyJobStore
+from ptbcontrib.postgres_persistence import PostgresPersistence
 
 from config import TG_TOKEN, DATABASE_URL
-
-from ptbcontrib.ptb_jobstores.sqlalchemy import PTBSQLAlchemyJobStore
-import traceback
-import html
-import json
+from utils.logger import logger
 
 
+async def add(update: Update, context: ContextTypes.DEFAULT_TYPE) -> str:
+    text = "📅 *Nuevo Recordatorio* 📅\n\n¿Qué recordatorio quieres agregar? \[📝/🎙️]\nIncluye fecha, hora y lugar. \n\n_(Si es périódico, selecciona opción correspondiente)_"
+    keyboard = InlineKeyboardMarkup([
+        [
+        InlineKeyboardButton(text="🕒️ Recordatorio Periódico", callback_data=str(ADD_PERIODIC)),
+        InlineKeyboardButton(text="⬅️ Atrás", callback_data=str(END)),
+        ]
+    ])
+    await update.callback_query.answer()
+    await update.callback_query.edit_message_text(text=text, reply_markup=keyboard, parse_mode="markdown")
+    return ADD
 
+
+async def add_periodic(update: Update, context: ContextTypes.DEFAULT_TYPE) -> str:
+    text = "Por favor, escribe el recordatorio que deseas agregar."
+    keyboard = InlineKeyboardMarkup([
+        [InlineKeyboardButton(text="Atrás", callback_data=str(END))]
+    ])
+    await update.callback_query.edit_message_text(text=text, parse_mode="markdown", reply_markup=keyboard)
+    return LISTENING_PERIODIC_REMINDER
+
+
+async def show(update: Update, context: ContextTypes.DEFAULT_TYPE) -> str:
+    text = "📅 *Mostrar Recordatorios* 📅\n\n¿Qué recordatorios quieres ver? \[📝/🎙️]\n_Selec. la opción que desees_."
+    keyboard = InlineKeyboardMarkup([
+        [
+            InlineKeyboardButton(text="📁 Todos los recordatorios", callback_data=str(SHOW_ALL)),
+        ],
+        [
+            InlineKeyboardButton(text="📆 Hoy", callback_data=str(SHOW_TODAY)),
+            InlineKeyboardButton(text="📆 Mañana", callback_data=str(SHOW_TOMORROW)),
+        ],
+        [
+            InlineKeyboardButton(text="🔍 Recordatorio específico", callback_data=str(SHOW_BY_NAME)),
+            InlineKeyboardButton(text="📆 Próximos 7 días", callback_data=str(SHOW_WEEK)),
+        ],
+        [
+            InlineKeyboardButton(text="⬅️ Atrás", callback_data=str(END)),
+        ],
+    ])
+    await update.callback_query.answer()
+    await update.callback_query.edit_message_text(text=text, reply_markup=keyboard, parse_mode="markdown")
+    return SHOW
+
+
+async def listening_to_show_by_name(update: Update, context: ContextTypes.DEFAULT_TYPE) -> str:
+    text = "¿Cual es el recordatorio que deseas ver?"
+    keyboard = InlineKeyboardMarkup([
+        [InlineKeyboardButton(text="Cancelar", callback_data=str(END))]
+    ])
+    await update.callback_query.edit_message_text(text=text, reply_markup=keyboard)
+    return LISTENING_TO_SHOW_BY_NAME    
+
+
+async def delete(update: Update, context: ContextTypes.DEFAULT_TYPE) -> str:
+    text = "❌ *Eliminar Recordatorios* ❌\n\n¿Qué recordatorios quieres eliminar?\n_Selec. la opción que desees_."
+    keyboard = InlineKeyboardMarkup([
+        [
+            InlineKeyboardButton(text="🚮 Borrar todos los recordatorios", callback_data=str(DELETE_ALL)),
+            InlineKeyboardButton(text="🔍 Borrar recordatorio específico", callback_data=str(DELETE_BY_NAME)),
+        ],
+        [
+            InlineKeyboardButton(text="⬅️ Atrás", callback_data=str(END)),
+        ],
+    ])
+    await update.callback_query.answer()
+    await update.callback_query.edit_message_text(text=text, reply_markup=keyboard, parse_mode="markdown")
+    return DELETE
+
+
+async def listening_to_delete_by_name(update: Update, context: ContextTypes.DEFAULT_TYPE) -> str:
+    text = "*¿Cual es el recordatorio que deseas borrar?*"
+    keyboard = InlineKeyboardMarkup([
+        [InlineKeyboardButton(text="Cancelar", callback_data=str(END))]
+    ])
+    await update.callback_query.edit_message_text(text=text, reply_markup=keyboard, parse_mode="markdown")
+    return LISTENING_TO_DELETE_BY_NAME    
+
+
+async def end_second_level(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    context.user_data[START_OVER] = True
+    await start(update, context)
+    return MENU
+
+
+async def stop(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    await update.message.reply_text("Okay, bye.")
+    return END
+
+
+async def end(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    await update.callback_query.answer()
+    text = "See you around!"
+    await update.callback_query.edit_message_text(text=text)
+    return END
+
+async def error_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Log the error and send a message to the user."""
+    logger.error(msg="Exception while handling an update:", exc_info=context.error)
+    try:
+        await update.callback_query.message.reply_text("Se produjo un error, volviendo al menú principal.")
+    except AttributeError:
+        await update.effective_message.reply_text("Se produjo un error, volviendo al menú principal.")
+    
+    # Limpiar el estado y volver al menú principal
+    context.user_data['START_OVER'] = True
+    context.user_data['START_WITH_NEW_REPLY'] = True
+    context.user_data['MESSAGE_TEXT'] = None
+    
+    await start(update, context)
 
 def main() -> None:
-    """Run bot."""
-    # Create the Application and pass it your bot's token.
-    application = Application.builder().token(TG_TOKEN).build()
-
+    application = Application.builder().token(TG_TOKEN).persistence(PostgresPersistence(url=DATABASE_URL)).build()
+    
     application.job_queue.scheduler.add_jobstore(
         PTBSQLAlchemyJobStore(
             application=application,
@@ -37,69 +187,66 @@ def main() -> None:
         callback=notify_next_day_jobs_callback,
         job_name="notify_next_day_jobs"
     )
-    # job_minute = job_queue.run_repeating(callback_minute, interval=60, first=10)
-
-    # on different commands - answer in Telegram
-    application.add_handler(CommandHandler(["start", "help"], start))
-    application.add_handler(CommandHandler("list", list_jobs))
-    application.add_handler(MessageHandler(filters.VOICE | (filters.TEXT & ~filters.COMMAND), categorize_and_reply))
-    application.add_handler(CommandHandler("list_day", list_jobs_for_current_day))
-    application.add_handler(CommandHandler("list_next_day", list_jobs_for_next_day))
-    application.add_handler(CommandHandler("list_week", list_jobs_for_current_week))
-    application.add_handler(CallbackQueryHandler(delete_callback, pattern="^(DELETE_ALL|DELETE_REMINDER.*|CANCELAR)$"))
     
-    
+    conv_handler = ConversationHandler(
+        entry_points= [CommandHandler("start", start), CommandHandler("menu", start)],
+        states={
+            MENU: [
+                CallbackQueryHandler(add, pattern=f"^{str(ADD)}$"),
+                CallbackQueryHandler(show, pattern=f"^{str(SHOW)}$"),
+                CallbackQueryHandler(delete, pattern=f"^{str(DELETE)}$"),
+                CallbackQueryHandler(show_all, pattern=f"^{str(SHOW_ALL)}$"),
+                CallbackQueryHandler(show_today, pattern=f"^{str(SHOW_TODAY)}$"),
+                CallbackQueryHandler(show_tomorrow, pattern=f"^{str(SHOW_TOMORROW)}$"),
+                CallbackQueryHandler(show_week, pattern=f"^{str(SHOW_WEEK)}$"),
+                CallbackQueryHandler(show_by_name, pattern=f"^{str(SHOW_BY_NAME)}$"),
+                MessageHandler(filters.VOICE | (filters.TEXT & ~filters.COMMAND), categorize_and_reply),
+            ],
+            ADD: [
+                CallbackQueryHandler(add_periodic, pattern=f"^{str(ADD_PERIODIC)}$"),
+                MessageHandler(filters.VOICE | (filters.TEXT & ~filters.COMMAND), add_reminder_timer),
+            ],
+            LISTENING_PERIODIC_REMINDER: [MessageHandler(filters.VOICE | (filters.TEXT & ~filters.COMMAND), echo)],
+            SHOW: [
+                CallbackQueryHandler(show_all, pattern=f"^{str(SHOW_ALL)}$"),
+                CallbackQueryHandler(show_today, pattern=f"^{str(SHOW_TODAY)}$"),
+                CallbackQueryHandler(show_tomorrow, pattern=f"^{str(SHOW_TOMORROW)}$"),
+                CallbackQueryHandler(show_week, pattern=f"^{str(SHOW_WEEK)}$"),
+                CallbackQueryHandler(listening_to_show_by_name, pattern=f"^{str(SHOW_BY_NAME)}$"),
+            ],
+            LISTENING_TO_SHOW_BY_NAME: [MessageHandler(filters.VOICE | (filters.TEXT & ~filters.COMMAND), show_by_name)],
+            DELETE: [
+                CallbackQueryHandler(confirm_delete_all, pattern=f"^{str(DELETE_ALL)}$"),
+                CallbackQueryHandler(listening_to_delete_by_name, pattern=f"^{str(DELETE_BY_NAME)}$"),
+            ],
+            CONFIRM_DELETE_ALL: [
+                CallbackQueryHandler(delete_all, pattern=f"^{str(CONFIRMED_DELETE_ALL)}$"),
+            ],
+            LISTENING_TO_DELETE_BY_NAME: [MessageHandler(filters.VOICE | (filters.TEXT & ~filters.COMMAND), confirm_delete_by_name)],
+            CONFIRM_DELETE_BY_NAME: [
+                CallbackQueryHandler(delete_by_name, pattern=f"^{str(CONFIRMED_DELETE_BY_NAME)}$"),
+            ],
+        },
+        fallbacks=[
+            CommandHandler("stop", stop),
+            CommandHandler("menu", start),
+            CommandHandler("start", start),
+            CallbackQueryHandler(end_second_level, pattern=f"^{str(END)}$"),
+            # CallbackQueryHandler(start, pattern=f"^{str(MENU)}$"),
+            CallbackQueryHandler(delete_all, pattern=f"^{str(CONFIRMED_DELETE_ALL)}$"),
+            CallbackQueryHandler(delete_by_name, pattern=f"^{str(CONFIRMED_DELETE_BY_NAME)}$"),
+        ],
+    )
+    application.add_handler(conv_handler)
     application.add_error_handler(error_handler)
-    
-    
-    # Run the bot until the user presses Ctrl-C
     application.run_polling(allowed_updates=Update.ALL_TYPES)
-
-
-async def error_handler(update: object, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Log the error and send a telegram message to notify the developer."""
-    # Log the error before we do anything else, so we can see it even if something breaks.
-    logger.error("Exception while handling an update:", exc_info=context.error)
-
-    # traceback.format_exception returns the usual python message about an exception, but as a
-    # list of strings rather than a single string, so we have to join them together.
-    tb_list = traceback.format_exception(None, context.error, context.error.__traceback__)
-    tb_string = "".join(tb_list)
-
-    # Build the message with some markup and additional information about what happened.
-    # You might need to add some logic to deal with messages longer than the 4096 character limit.
-    update_str = update.to_dict() if isinstance(update, Update) else str(update)
-    message = (
-        "An exception was raised while handling an update\n"
-        f"<pre>update = {html.escape(json.dumps(update_str, indent=2, ensure_ascii=False))}"
-        "</pre>\n\n"
-        f"<pre>context.chat_data = {html.escape(str(context.chat_data))}</pre>\n\n"
-        f"<pre>context.user_data = {html.escape(str(context.user_data))}</pre>\n\n"
-        f"<pre>{html.escape(tb_string)}</pre>"
-    )
-
-    # Finally, send the message
-    await context.bot.send_message(
-        chat_id=update, text=message, parse_mode=ParseMode.HTML
-    )
-
-
 
 
 if __name__ == "__main__":
     main()
     
     
-# TESTS
-# 1. send reminder message
-# 2. send voice message
-# 3. list jobs
-# 4. list jobs for day
-# 5 wait for reminder
-# 6. probar que los comandos no afectan otros chat_ids
-
-
 # TODO:
-#     Delete Command
-#     List command
-#     error handling on agent request, (retry, inform user)
+# - Add periodic reminders
+# - multilanguage support
+# - Add tests

@@ -1,59 +1,46 @@
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
-from telegram.ext import (
-    Application,
-    CallbackQueryHandler,
-    CommandHandler,
-    ContextTypes,
-    ConversationHandler,
-    MessageHandler,
-    filters,
-)
-
-from telegram.ext import ContextTypes
-from telegram import Update
+from telegram.ext import ContextTypes, ConversationHandler
 from telegram.constants import ChatAction
-from datetime import datetime, timedelta
-from handlers.jobs import filter_jobs
-from handlers.categorize import process_prompt, select_job_by_name
-from handlers.set_reminders import set_reminder_timer
-from handlers.notifications import delete_all_confirmation, delete_reminder_confirmation
+
+from utils.agents import reminder_from_prompt, reminder_to_text, process_prompt, select_job_by_name
+from handlers.notifications import alarm, alarm_minus_30
 from utils.transcriptions import audio_handling
-
-
-from handlers.set_reminders import alarm, alarm_minus_30
 from handlers.jobs import remove_job_if_exists
-from utils.agents import reminder_from_prompt, reminder_to_text, model
+from handlers.jobs import filter_jobs
 from utils.logger import logger, tz
-from collections import defaultdict
-from config import TG_TOKEN
 
-from menu_constants import (
-    MENU,
-    ADD,
-    SHOW,
-    DELETE,
-    ADD_PERIODIC,
-    LISTENING_REMINDER,
-    LISTENING_PERIODIC_REMINDER,
-    SHOW_ALL,
-    SHOW_TODAY,
-    SHOW_TOMORROW,
-    SHOW_WEEK,
-    SHOW_BY_NAME,
-    LISTENING_TO_SHOW_BY_NAME,
-    DELETE_ALL,
-    DELETE_BY_NAME,
-    LISTENING_TO_DELETE_BY_NAME,
-    CONFIRM_DELETE_ALL,
-    CONFIRMED_DELETE_ALL,
-    CONFIRM_DELETE_BY_NAME,
-    CONFIRMED_DELETE_BY_NAME,
-    START_OVER,
-    START_WITH_NEW_REPLY,
-    STOPPING,
-    MESSAGE_TEXT,
-    END
-)
+from datetime import datetime, timedelta
+from collections import defaultdict
+
+states = [chr(i) for i in range(24)]
+(
+    MENU, 
+    ADD, 
+    SHOW, 
+    DELETE, 
+    ADD_PERIODIC, 
+    LISTENING_REMINDER, 
+    LISTENING_PERIODIC_REMINDER, 
+    SHOW_ALL, 
+    SHOW_TODAY, 
+    SHOW_TOMORROW, 
+    SHOW_WEEK, 
+    SHOW_BY_NAME, 
+    LISTENING_TO_SHOW_BY_NAME, 
+    DELETE_ALL, 
+    DELETE_BY_NAME, 
+    CONFIRM_DELETE_ALL, 
+    CONFIRMED_DELETE_ALL, 
+    LISTENING_TO_DELETE_BY_NAME, 
+    CONFIRM_DELETE_BY_NAME, 
+    CONFIRMED_DELETE_BY_NAME, 
+    START_OVER, 
+    START_WITH_NEW_REPLY, 
+    STOPPING, 
+    MESSAGE_TEXT
+) = states
+
+END = ConversationHandler.END
 
 from datetime import datetime, timedelta
 from functools import wraps
@@ -129,7 +116,7 @@ async def echo(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 async def add_reminder_timer(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     
     await handle_audio_or_text(update, context)
-    query = context.user_data.get('MESSAGE_TEXT')
+    query = context.user_data.get(MESSAGE_TEXT)
 
     logger.info(f"Test: {query}")
 
@@ -295,7 +282,7 @@ async def delete_all(update: Update, context: ContextTypes.DEFAULT_TYPE) -> str:
 async def show_by_name(update: Update, context: ContextTypes.DEFAULT_TYPE, name=None) -> str:
     """Show reminder by name."""
     await handle_audio_or_text(update, context)
-    query = context.user_data.get('MESSAGE_TEXT')
+    query = context.user_data.get(MESSAGE_TEXT)
     
     if not name:
         name = select_job_by_name(update, context, query)
@@ -313,7 +300,7 @@ async def show_by_name(update: Update, context: ContextTypes.DEFAULT_TYPE, name=
 async def confirm_delete_by_name(update: Update, context: ContextTypes.DEFAULT_TYPE) -> str:
     
     await handle_audio_or_text(update, context)
-    query = context.user_data.get('MESSAGE_TEXT')
+    query = context.user_data.get(MESSAGE_TEXT)
     
     name = select_job_by_name(update, context, query)
     jobs = filter_jobs(context, start_date=None, end_date=None, chat_id=update.effective_message.chat_id, job_type=None, name=name)
@@ -366,7 +353,7 @@ async def categorize_and_reply(update, context):
     """Categorizes a prompt into three categories."""
     
     await handle_audio_or_text(update, context)
-    query = context.user_data.get('MESSAGE_TEXT')
+    query = context.user_data.get(MESSAGE_TEXT)
 
     response = process_prompt(update, context, query)
     
@@ -396,7 +383,7 @@ async def crossroad(update, context, response):
 async def handle_audio_or_text(update, context):
     """Handle audio or text messages."""
     
-    if not context.user_data.get('MESSAGE_TEXT'):
+    if not context.user_data.get(MESSAGE_TEXT):
         if update.message.voice:
             logger.info("Audio message received.")
             query = await audio_handling(update, context)  # Convert audio to text
@@ -406,3 +393,4 @@ async def handle_audio_or_text(update, context):
             query = update.message.text
 
         context.user_data[MESSAGE_TEXT] = query
+        logger.info('Test2: ' + context.user_data[MESSAGE_TEXT])
