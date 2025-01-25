@@ -9,7 +9,7 @@ import io
 
 
 async def transcribe_voice(voice_file):
-
+    logger.info("Transcribing audio...")
     audio_buffer = io.BytesIO()
     await voice_file.download_to_memory(audio_buffer)
 

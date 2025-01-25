@@ -130,7 +130,9 @@ Devuelve solo el ID numérico correspondiente al recordatorio que el usuario est
 
 
 def select_job_by_name(update, context, query):
-    query = update.effective_message.text
+    
+    logger.info("Selecting job by name")
+    
     jobs = filter_jobs(context, start_date=None, end_date=None, chat_id=update.effective_message.chat_id, job_type='parent')
     reminders_text = ""
     for i, job in enumerate(jobs):

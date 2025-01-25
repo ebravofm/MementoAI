@@ -56,6 +56,8 @@ from menu_constants import (
 
 from datetime import datetime, timedelta
 
+
+
 # Top level conversation callbacks
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> str:
     """Selecciona una acción: Agregar recordatorio, mostrar recordatorios o eliminar recordatorios."""
@@ -96,6 +98,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> str:
 
     context.user_data[START_OVER] = False
     context.user_data[START_WITH_NEW_REPLY] = False
+    context.user_data['MESSAGE_TEXT'] = None
     return MENU
 
 
@@ -112,8 +115,13 @@ async def echo(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     return MENU
 
 
-async def add_reminder_timer(update: Update, context: ContextTypes.DEFAULT_TYPE, query) -> None:
-    # query = update.message.text
+async def add_reminder_timer(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    
+    await handle_audio_or_text(update, context)
+    query = context.user_data.get('MESSAGE_TEXT')
+
+    logger.info(f"Test: {query}")
+
     chat_id = update.effective_chat.id
     # Generate reminder from the text
     reminder = reminder_from_prompt(query)
@@ -172,6 +180,9 @@ async def add_reminder_timer(update: Update, context: ContextTypes.DEFAULT_TYPE,
 
     except (IndexError, ValueError) as e:
         await update.effective_message.reply_text(f"An error occurred: {str(e)}")
+        
+    finally:
+        context.user_data['MESSAGE_TEXT'] = None
         
     return MENU
 
@@ -345,7 +356,10 @@ async def delete_all(update: Update, context: ContextTypes.DEFAULT_TYPE) -> str:
 
 async def show_by_name(update: Update, context: ContextTypes.DEFAULT_TYPE) -> str:
     """Show reminder by name."""
-    name = select_job_by_name(update, context, update.effective_message.text)
+    await handle_audio_or_text(update, context)
+    query = context.user_data.get('MESSAGE_TEXT')
+    
+    name = select_job_by_name(update, context, query)
     jobs = filter_jobs(context, start_date=None, end_date=None, chat_id=update.effective_message.chat_id, job_type='parent', name=name)
     if not jobs:
         await update.effective_message.reply_text(f"No se encontró el recordatorio '{name}'.")
@@ -362,6 +376,7 @@ async def show_by_name(update: Update, context: ContextTypes.DEFAULT_TYPE) -> st
     
     context.user_data[START_OVER] = True
     context.user_data[START_WITH_NEW_REPLY] = True
+    context.user_data['MESSAGE_TEXT'] = None
     
     await start(update, context)
     
@@ -369,10 +384,12 @@ async def show_by_name(update: Update, context: ContextTypes.DEFAULT_TYPE) -> st
 
 
 
-
 async def confirm_delete_by_name(update: Update, context: ContextTypes.DEFAULT_TYPE) -> str:
     
-    name = select_job_by_name(update, context, update.effective_message.text)
+    await handle_audio_or_text(update, context)
+    query = context.user_data.get('MESSAGE_TEXT')
+    
+    name = select_job_by_name(update, context, query)
     jobs = filter_jobs(context, start_date=None, end_date=None, chat_id=update.effective_message.chat_id, job_type=None, name=name)
     if not jobs:
         await update.message.reply_text(f"No se encontró el recordatorio '{name}'.")
@@ -393,6 +410,7 @@ async def confirm_delete_by_name(update: Update, context: ContextTypes.DEFAULT_T
         ]
     ])
     await update.effective_message.reply_text(text=text, reply_markup=keyboard, parse_mode="markdown")
+    
     return CONFIRM_DELETE_BY_NAME
 
 
@@ -421,6 +439,7 @@ async def delete_by_name(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     
     context.user_data[START_OVER] = True
     context.user_data[START_WITH_NEW_REPLY] = True
+    context.user_data['MESSAGE_TEXT'] = None
     
     await start(update, context)
     
@@ -430,28 +449,20 @@ async def delete_by_name(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
 async def categorize_and_reply(update, context):
     """Categorizes a prompt into three categories."""
     
-    await context.bot.send_chat_action(chat_id=update.effective_message.chat_id, action=ChatAction.TYPING)
+    await handle_audio_or_text(update, context)
+    query = context.user_data.get('MESSAGE_TEXT')
 
-    # Determine the message type (audio or text)
-    if update.message.voice:  # Audio message
-        logger.info("Audio message received.")
-        query = await audio_handling(update, context)  # Convert audio to text
-    else:  # Text message
-        logger.info("Message received.")
-        query = update.message.text
-
-    
-    # use procees_prompt function from categorize.py
     response = process_prompt(update, context, query)
+    
     logger.info(f"Response: {response}")
     
-    await crossroad(update, context, response, query)
+    await crossroad(update, context, response)
 
 
-async def crossroad(update, context, response, query):
+async def crossroad(update, context, response):
 
     if response["category"] == "add_reminder":
-        await add_reminder_timer(update, context, query)
+        await add_reminder_timer(update, context)
                         
     elif response["category"] == "show":
         if response["all_reminders"]:
@@ -464,4 +475,18 @@ async def crossroad(update, context, response, query):
             await confirm_delete_all(update, context)
         else:
             await confirm_delete_by_name(update, context)
+            
+            
+async def handle_audio_or_text(update, context):
+    """Handle audio or text messages."""
+    
+    if not context.user_data.get('MESSAGE_TEXT'):
+        if update.message.voice:
+            logger.info("Audio message received.")
+            query = await audio_handling(update, context)  # Convert audio to text
 
+        else:
+            logger.info("Message received.")
+            query = update.message.text
+
+        context.user_data['MESSAGE_TEXT'] = query
