@@ -51,12 +51,14 @@ from menu_constants import (
     START_OVER,
     START_WITH_NEW_REPLY,
     STOPPING,
+    MESSAGE_TEXT,
     END
 )
 
 from datetime import datetime, timedelta
 from functools import wraps
-
+import locale
+locale.setlocale(locale.LC_TIME, "es_ES")
 
 
 def cleanup_and_restart(func):
@@ -64,9 +66,9 @@ def cleanup_and_restart(func):
     async def wrapper(update: Update, context: ContextTypes.DEFAULT_TYPE, *args, **kwargs):
         result = await func(update, context, *args, **kwargs)
         
-        context.user_data['START_OVER'] = True
-        context.user_data['START_WITH_NEW_REPLY'] = True
-        context.user_data['MESSAGE_TEXT'] = None
+        context.user_data[START_OVER] = True
+        context.user_data[START_WITH_NEW_REPLY] = True
+        context.user_data[MESSAGE_TEXT] = None
         
         await start(update, context)
         return MENU
@@ -77,44 +79,38 @@ def cleanup_and_restart(func):
 # Top level conversation callbacks
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> str:
     """Selecciona una acción: Agregar recordatorio, mostrar recordatorios o eliminar recordatorios."""
-    text = (
-        "Puedes elegir agregar un nuevo recordatorio, mostrar los recordatorios o eliminar recordatorios. "
-        "Para abortar, simplemente escribe /stop."
-    )
-
+    
+    full_text = "🤖 *Bienvenid@ a MementoAI* 🤖\n\nEstoy aquí para ayudarte a gestionar tus recordatorios de manera fácil y eficiente.\n\n¿En qué puedo ayudarte?"
+    text_then = "¿En qué más puedo ayudarte?"
     buttons = [
         [
-            InlineKeyboardButton(text="Agregar nuevo recordatorio", callback_data=str(ADD)),
+            InlineKeyboardButton(text="📝 Agregar nuevo recordatorio", callback_data=str(ADD)),
         ],
         [
-            InlineKeyboardButton(text="Mostrar recordatorios", callback_data=str(SHOW)),
-            InlineKeyboardButton(text="Eliminar recordatorios", callback_data=str(DELETE)),
-        ],
+            InlineKeyboardButton(text="📄 Ver recordatorios", callback_data=str(SHOW)),
+            InlineKeyboardButton(text="❌ Eliminar recordatorios", callback_data=str(DELETE)),
+        ],    
     ]
     keyboard = InlineKeyboardMarkup(buttons)
 
-    # If we're starting over we don't need to send a new message
+    logger.info(context.user_data)
     if context.user_data.get(START_OVER):
         if context.user_data.get(START_WITH_NEW_REPLY):
-            await context.bot.send_message(update.effective_chat.id, text=text, reply_markup=keyboard)
+            await context.bot.send_message(update.effective_chat.id, text=text_then, reply_markup=keyboard, parse_mode="markdown")
         else:
             try:
-                await update.callback_query.edit_message_text(text=text, reply_markup=keyboard)
+                await update.callback_query.edit_message_text(text=text_then, reply_markup=keyboard, parse_mode="markdown")
             except AttributeError:
-                await context.bot.send_message(update.effective_chat.id, text=text, reply_markup=keyboard)
+                await context.bot.send_message(update.effective_chat.id, text=text_then, reply_markup=keyboard, parse_mode="markdown")
     else:
-        # await update.message.reply_text(
-        #     "Hola! Soy tu asistente de recordatorios. ¿En qué puedo ayudarte hoy?"
-        # )
-        # await update.message.reply_text(text=text, reply_markup=keyboard)
-        await context.bot.send_message(update.effective_chat.id, text="Hola! Soy tu asistente de recordatorios. ¿En qué puedo ayudarte hoy?")
-        await context.bot.send_message(update.effective_chat.id, text=text, reply_markup=keyboard)
+        logger.info('test1')
+        await update.effective_message.reply_text(text=full_text, reply_markup=keyboard, parse_mode="markdown")
+        # await context.bot.send_message(update.effective_chat.id, text=full_text, reply_markup=keyboard, parse_mode="markdown")
 
     context.user_data[START_OVER] = False
     context.user_data[START_WITH_NEW_REPLY] = False
-    context.user_data['MESSAGE_TEXT'] = None
+    context.user_data[MESSAGE_TEXT] = None
     return MENU
-
 
 async def echo(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Echo the user message."""
@@ -217,12 +213,13 @@ async def show_all(update, context, start_date: datetime = None, end_date: datet
             jobs_by_day[job_day].append(job)
 
     # Formatear la lista de trabajos por día
-    message = f"*{header}:*\n"
+    message = f"📅 *{header}* 📅:\n"
     for day, jobs in sorted(jobs_by_day.items()):
-        day_str = day.strftime("%A %d %B")  # Ejemplo: Tuesday 23 January 2025
+        day_str = day.strftime("%A %d/%B") 
+        day_str = day_str.title()
         message += f"\n*{day_str}*:\n"
         message += "\n".join(
-            [f"  - {job.data['Time'].strftime('%H:%M')}: {job.data['Title']}" for job in jobs]
+            [f"    {job.data['Time'].strftime('%H:%M')}: {job.data['Title']}" for job in jobs]
         )
         message += "\n"
 
@@ -233,70 +230,66 @@ async def show_all(update, context, start_date: datetime = None, end_date: datet
         await update.effective_message.reply_text(message, parse_mode="markdown")
         
 
-@cleanup_and_restart
 async def show_today(update: Update, context: ContextTypes.DEFAULT_TYPE) -> str:
     """Show today's reminders."""
     today = datetime.now()
     await show_all(update, context, start_date=today, end_date=today, header="Recordatorios Programados para Hoy")
+    return MENU
     
     
-@cleanup_and_restart
 async def show_tomorrow(update: Update, context: ContextTypes.DEFAULT_TYPE) -> str:
     """Show tomorrow's reminders."""
     tomorrow = datetime.now() + timedelta(days=1)
     await show_all(update, context, start_date=tomorrow, end_date=tomorrow, header="Recordatorios Programados para Mañana")
+    return MENU
 
 
-@cleanup_and_restart
 async def show_week(update: Update, context: ContextTypes.DEFAULT_TYPE) -> str:
     """Show reminders for the next 7 days."""
     today = datetime.now()
     await show_all(update, context, start_date=today, end_date=today + timedelta(days=7), header="Recordatorios Programados para la Semana")
-    
-    
-
+    return MENU
 
 
 async def confirm_delete_all(update: Update, context: ContextTypes.DEFAULT_TYPE) -> str:
-    text = "¿Estás seguro de que deseas eliminar todos los recordatorios? Esta acción es irreversible."
+    text = "❌ *Eliminar todos los recordatorios* ❌\n\n¿Estás seguro de que deseas eliminar todos los recordatorios? Esta acción es irreversible."
     keyboard = InlineKeyboardMarkup([
         [
-            InlineKeyboardButton(text="Confirmar", callback_data=str(CONFIRMED_DELETE_ALL)),
-            InlineKeyboardButton(text="Cancelar", callback_data=str(END)),
+            InlineKeyboardButton(text="✅ Confirmar", callback_data=str(CONFIRMED_DELETE_ALL)),
+            InlineKeyboardButton(text="❌ Cancelar", callback_data=str(END)),
         ]
     ])
     try:
         await update.callback_query.answer()
-        await update.callback_query.edit_message_text(text=text, reply_markup=keyboard)
+        await update.callback_query.edit_message_text(text=text, reply_markup=keyboard, parse_mode="markdown")
     except AttributeError:
-        await update.effective_message.reply_text(text=text, reply_markup=keyboard)
+        await update.effective_message.reply_text(text=text, reply_markup=keyboard, parse_mode="markdown")
         
     return CONFIRM_DELETE_ALL
-
     
 @cleanup_and_restart
 async def delete_all(update: Update, context: ContextTypes.DEFAULT_TYPE) -> str:
-    """Delete all reminders."""
-    logger.info("Deleting all jobs.")
+    """Eliminar todos los recordatorios."""
+    logger.info("Eliminando todos los recordatorios.")
     jobs = filter_jobs(context, start_date=None, end_date=None, chat_id=update.effective_chat.id, name=None, job_type=None)
 
     if not jobs:
+        text = "ℹ️ *No se encontraron recordatorios para eliminar* ℹ️"
         try:
-            await update.callback_query.edit_message_text("No se encontraron trabajos para eliminar.")
-        except:
-            await update.effective_message.reply_text("No se encontraron trabajos para eliminar.")
+            await update.callback_query.edit_message_text(text=text, parse_mode="markdown")
+        except AttributeError:
+            await update.effective_message.reply_text(text=text, parse_mode="markdown")
         
         return 
 
     for job in jobs:
         job.schedule_removal()   
         
-    text = "Todos los recordatorios han sido eliminados."
+    text = "🗑️ *Todos los recordatorios han sido eliminados* 🗑️"
     try:
         await update.callback_query.edit_message_text(text=text, parse_mode="markdown")
     except AttributeError:
         await update.effective_message.reply_text(text=text, parse_mode="markdown")
-        
 
 @cleanup_and_restart
 async def show_by_name(update: Update, context: ContextTypes.DEFAULT_TYPE, name=None) -> str:
@@ -325,7 +318,8 @@ async def confirm_delete_by_name(update: Update, context: ContextTypes.DEFAULT_T
     name = select_job_by_name(update, context, query)
     jobs = filter_jobs(context, start_date=None, end_date=None, chat_id=update.effective_message.chat_id, job_type=None, name=name)
     if not jobs:
-        await update.message.reply_text(f"No se encontró el recordatorio '{name}'.")
+        text = f"ℹ️ *No se encontró el recordatorio '{name}'* ℹ️"
+        await update.message.reply_text(text=text, parse_mode="markdown")
         
         context.user_data[START_OVER] = True
         context.user_data[START_WITH_NEW_REPLY] = True
@@ -335,11 +329,11 @@ async def confirm_delete_by_name(update: Update, context: ContextTypes.DEFAULT_T
     
     context.user_data['JOB_TO_DELETE'] = jobs[0].name
 
-    text = f"¿Estás seguro de que deseas eliminar el siguiente recordatorio?\n\n{jobs[0].data['text']}"
+    text = f"❌ *Eliminar recordatorio* ❌\n\n¿Estás seguro de que deseas eliminar el siguiente recordatorio?\n\n{jobs[0].data['text']}"
     keyboard = InlineKeyboardMarkup([
         [
-            InlineKeyboardButton(text="Confirmar", callback_data=str(CONFIRMED_DELETE_BY_NAME)),
-            InlineKeyboardButton(text="Cancelar", callback_data=str(END)),
+            InlineKeyboardButton(text="✅ Confirmar", callback_data=str(CONFIRMED_DELETE_BY_NAME)),
+            InlineKeyboardButton(text="🚫 Cancelar", callback_data=str(END)),
         ]
     ])
     await update.effective_message.reply_text(text=text, reply_markup=keyboard, parse_mode="markdown")
@@ -363,10 +357,9 @@ async def delete_by_name(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         job.schedule_removal()
         
     try:
-        await update.callback_query.edit_message_text(f"El recordatorio '{name}' ha sido eliminado.")
+        await update.callback_query.edit_message_text(f"El recordatorio *{name}* ha sido eliminado.", parse_mode="markdown")
     except AttributeError:
-        await update.effective_message.reply_text(f"El recordatorio '{name}' ha sido eliminado.")
-    
+        await update.effective_message.reply_text(f"El recordatorio *{name}* ha sido eliminado.", parse_mode="markdown")
 
 
 async def categorize_and_reply(update, context):
@@ -412,4 +405,4 @@ async def handle_audio_or_text(update, context):
             logger.info("Message received.")
             query = update.message.text
 
-        context.user_data['MESSAGE_TEXT'] = query
+        context.user_data[MESSAGE_TEXT] = query

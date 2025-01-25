@@ -33,6 +33,7 @@ from menu_constants import (
     START_OVER,
     START_WITH_NEW_REPLY,
     STOPPING,
+    MESSAGE_TEXT,
     END
 )
 
@@ -61,15 +62,15 @@ from config import TG_TOKEN, DATABASE_URL
 
 
 async def add(update: Update, context: ContextTypes.DEFAULT_TYPE) -> str:
-    text = "Por favor, escribe el recordatorio que deseas agregar. Si quieres agregar un recordatorio periódico, selecciona la opción correspondiente."
+    text = "📅 *Nuevo Recordatorio* 📅\n\n¿Qué recordatorio quieres agregar? \[📝/🎙️]\nIncluye fecha, hora y lugar. \n\n_(Si es périódico, selecciona opción correspondiente)_"
     keyboard = InlineKeyboardMarkup([
         [
-            InlineKeyboardButton(text="Recordatorio Periódico", callback_data=str(ADD_PERIODIC)),
-            InlineKeyboardButton(text="Atrás", callback_data=str(END)),
+        InlineKeyboardButton(text="🕒️ Recordatorio Periódico", callback_data=str(ADD_PERIODIC)),
+        InlineKeyboardButton(text="⬅️ Atrás", callback_data=str(END)),
         ]
     ])
     await update.callback_query.answer()
-    await update.callback_query.edit_message_text(text=text, reply_markup=keyboard)
+    await update.callback_query.edit_message_text(text=text, reply_markup=keyboard, parse_mode="markdown")
     return ADD
 
 
@@ -83,25 +84,25 @@ async def add_periodic(update: Update, context: ContextTypes.DEFAULT_TYPE) -> st
 
 
 async def show(update: Update, context: ContextTypes.DEFAULT_TYPE) -> str:
-    text = "¡Qué recordatorios quieres ver?."
+    text = "📅 *Mostrar Recordatorios* 📅\n\n¿Qué recordatorios quieres ver? \[📝/🎙️]\n_Selec. la opción que desees_."
     keyboard = InlineKeyboardMarkup([
         [
-            InlineKeyboardButton(text="Todos los recordatorios", callback_data=str(SHOW_ALL)),
+            InlineKeyboardButton(text="📁 Todos los recordatorios", callback_data=str(SHOW_ALL)),
         ],
         [
-            InlineKeyboardButton(text="Recordatorios para hoy", callback_data=str(SHOW_TODAY)),
-            InlineKeyboardButton(text="Recordatorios para mañana", callback_data=str(SHOW_TOMORROW)),
+            InlineKeyboardButton(text="📆 Hoy", callback_data=str(SHOW_TODAY)),
+            InlineKeyboardButton(text="📆 Mañana", callback_data=str(SHOW_TOMORROW)),
         ],
         [
-            InlineKeyboardButton(text="Recordatorio específico", callback_data=str(SHOW_BY_NAME)),
-            InlineKeyboardButton(text="Recordatorios de los próximos 7 días", callback_data=str(SHOW_WEEK)),
+            InlineKeyboardButton(text="🔍 Recordatorio específico", callback_data=str(SHOW_BY_NAME)),
+            InlineKeyboardButton(text="📆 Próximos 7 días", callback_data=str(SHOW_WEEK)),
         ],
         [
-            InlineKeyboardButton(text="Atrás", callback_data=str(END)),
+            InlineKeyboardButton(text="⬅️ Atrás", callback_data=str(END)),
         ],
     ])
     await update.callback_query.answer()
-    await update.callback_query.edit_message_text(text=text, reply_markup=keyboard)
+    await update.callback_query.edit_message_text(text=text, reply_markup=keyboard, parse_mode="markdown")
     return SHOW
 
 
@@ -115,27 +116,27 @@ async def listening_to_show_by_name(update: Update, context: ContextTypes.DEFAUL
 
 
 async def delete(update: Update, context: ContextTypes.DEFAULT_TYPE) -> str:
-    text = "Por favor, selecciona la opción que deseas."
+    text = "❌ *Eliminar Recordatorios* ❌\n\n¿Qué recordatorios quieres eliminar?\n_Selec. la opción que desees_."
     keyboard = InlineKeyboardMarkup([
         [
-            InlineKeyboardButton(text="Borrar todos los recordatorios", callback_data=str(DELETE_ALL)),
-            InlineKeyboardButton(text="Borrar recordatorio específico", callback_data=str(DELETE_BY_NAME)),
+            InlineKeyboardButton(text="🚮 Borrar todos los recordatorios", callback_data=str(DELETE_ALL)),
+            InlineKeyboardButton(text="🔍 Borrar recordatorio específico", callback_data=str(DELETE_BY_NAME)),
         ],
         [
-            InlineKeyboardButton(text="Atrás", callback_data=str(END)),
+            InlineKeyboardButton(text="⬅️ Atrás", callback_data=str(END)),
         ],
     ])
     await update.callback_query.answer()
-    await update.callback_query.edit_message_text(text=text, reply_markup=keyboard)
+    await update.callback_query.edit_message_text(text=text, reply_markup=keyboard, parse_mode="markdown")
     return DELETE
 
 
 async def listening_to_delete_by_name(update: Update, context: ContextTypes.DEFAULT_TYPE) -> str:
-    text = "¿Cual es el recordatorio que deseas borrar?"
+    text = "*¿Cual es el recordatorio que deseas borrar?*"
     keyboard = InlineKeyboardMarkup([
         [InlineKeyboardButton(text="Cancelar", callback_data=str(END))]
     ])
-    await update.callback_query.edit_message_text(text=text, reply_markup=keyboard)
+    await update.callback_query.edit_message_text(text=text, reply_markup=keyboard, parse_mode="markdown")
     return LISTENING_TO_DELETE_BY_NAME    
 
 
@@ -182,7 +183,7 @@ def main() -> None:
     )
     
     conv_handler = ConversationHandler(
-        entry_points=[CommandHandler("start", start)],
+        entry_points= [CommandHandler("start", start), CommandHandler("menu", start)],
         states={
             MENU: [
                 CallbackQueryHandler(add, pattern=f"^{str(ADD)}$"),
@@ -222,7 +223,10 @@ def main() -> None:
         },
         fallbacks=[
             CommandHandler("stop", stop),
+            CommandHandler("menu", start),
+            CommandHandler("start", start),
             CallbackQueryHandler(end_second_level, pattern=f"^{str(END)}$"),
+            # CallbackQueryHandler(start, pattern=f"^{str(MENU)}$"),
             CallbackQueryHandler(delete_all, pattern=f"^{str(CONFIRMED_DELETE_ALL)}$"),
             CallbackQueryHandler(delete_by_name, pattern=f"^{str(CONFIRMED_DELETE_BY_NAME)}$"),
         ],
@@ -234,3 +238,9 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
+    
+    
+# TODO:
+# - Add periodic reminders
+# - multilanguage support
+# - Add tests

@@ -24,5 +24,6 @@ CONFIRMED_DELETE_BY_NAME = chr(19)
 START_OVER = chr(20)
 START_WITH_NEW_REPLY = chr(21)
 STOPPING = chr(22)
+MESSAGE_TEXT = chr(23)
 
 END = ConversationHandler.END
