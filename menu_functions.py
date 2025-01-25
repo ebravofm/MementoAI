@@ -112,8 +112,8 @@ async def echo(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     return MENU
 
 
-async def add_reminder_timer(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    query = update.message.text
+async def add_reminder_timer(update: Update, context: ContextTypes.DEFAULT_TYPE, query) -> None:
+    # query = update.message.text
     chat_id = update.effective_chat.id
     # Generate reminder from the text
     reminder = reminder_from_prompt(query)
@@ -292,11 +292,27 @@ async def show_by_name(update: Update, context: ContextTypes.DEFAULT_TYPE) -> st
     
     return MENU
 
+async def confirm_delete_all(update: Update, context: ContextTypes.DEFAULT_TYPE) -> str:
+    text = "¿Estás seguro de que deseas eliminar todos los recordatorios? Esta acción es irreversible."
+    keyboard = InlineKeyboardMarkup([
+        [
+            InlineKeyboardButton(text="Confirmar", callback_data=str(CONFIRMED_DELETE_ALL)),
+            InlineKeyboardButton(text="Cancelar", callback_data=str(END)),
+        ]
+    ])
+    try:
+        await update.callback_query.answer()
+        await update.callback_query.edit_message_text(text=text, reply_markup=keyboard)
+    except AttributeError:
+        await update.effective_message.reply_text(text=text, reply_markup=keyboard)
+        
+    return CONFIRM_DELETE_ALL
 
     
 
 async def delete_all(update: Update, context: ContextTypes.DEFAULT_TYPE) -> str:
     """Delete all reminders."""
+    logger.info("Deleting all jobs.")
     jobs = filter_jobs(context, start_date=None, end_date=None, chat_id=update.effective_chat.id, name=None, job_type=None)
 
     if not jobs:
@@ -352,6 +368,34 @@ async def show_by_name(update: Update, context: ContextTypes.DEFAULT_TYPE) -> st
     return MENU
 
 
+
+
+async def confirm_delete_by_name(update: Update, context: ContextTypes.DEFAULT_TYPE) -> str:
+    
+    name = select_job_by_name(update, context, update.effective_message.text)
+    jobs = filter_jobs(context, start_date=None, end_date=None, chat_id=update.effective_message.chat_id, job_type=None, name=name)
+    if not jobs:
+        await update.message.reply_text(f"No se encontró el recordatorio '{name}'.")
+        
+        context.user_data[START_OVER] = True
+        context.user_data[START_WITH_NEW_REPLY] = True
+        
+        await start(update, context)
+        return MENU
+    
+    context.user_data['JOB_TO_DELETE'] = jobs[0].name
+
+    text = f"¿Estás seguro de que deseas eliminar el siguiente recordatorio?\n\n{jobs[0].data['text']}"
+    keyboard = InlineKeyboardMarkup([
+        [
+            InlineKeyboardButton(text="Confirmar", callback_data=str(CONFIRMED_DELETE_BY_NAME)),
+            InlineKeyboardButton(text="Cancelar", callback_data=str(END)),
+        ]
+    ])
+    await update.effective_message.reply_text(text=text, reply_markup=keyboard, parse_mode="markdown")
+    return CONFIRM_DELETE_BY_NAME
+
+
 async def delete_by_name(update: Update, context: ContextTypes.DEFAULT_TYPE) -> str:
     """Delete reminders by name."""
     name = context.user_data['JOB_TO_DELETE']
@@ -386,7 +430,6 @@ async def delete_by_name(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
 async def categorize_and_reply(update, context):
     """Categorizes a prompt into three categories."""
     
-
     await context.bot.send_chat_action(chat_id=update.effective_message.chat_id, action=ChatAction.TYPING)
 
     # Determine the message type (audio or text)
@@ -402,28 +445,23 @@ async def categorize_and_reply(update, context):
     response = process_prompt(update, context, query)
     logger.info(f"Response: {response}")
     
-    await crossroad(update, context, response)
+    await crossroad(update, context, response, query)
 
 
-async def crossroad(update, context, response):
+async def crossroad(update, context, response, query):
 
     if response["category"] == "add_reminder":
-        if response["is_periodic"]:
-            await update.message.reply_text("El prompt indica agregar un recordatorio periódico.")
-        else:
-            await add_reminder_timer(update, context)
-            
-            
+        await add_reminder_timer(update, context, query)
+                        
     elif response["category"] == "show":
         if response["all_reminders"]:
             await show_all(update, context)
         else:
             await show_by_name(update, context)
-            
-            
+
     elif response["category"] == "delete":
         if response["all_reminders"]:
             await confirm_delete_all(update, context)
         else:
-            await delete_reminder_confirmation(update, context, response["reminder_name"])
+            await confirm_delete_by_name(update, context)
 

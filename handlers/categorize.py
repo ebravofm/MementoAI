@@ -37,11 +37,8 @@ Devuelve un número entero entre 0 y 2.
     general_response = general_chain.invoke({"query": query})
 
     if general_response["category"] == 1:
-        type_parser = JsonOutputParser(pydantic_object=ReminderType)
-        reminder_type = classify_reminder_type(query, model, type_parser)
         return {
             "category": "add_reminder",
-            "is_periodic": reminder_type["is_periodic"],
         }
 
     elif general_response["category"] in [0, 2]:
@@ -67,36 +64,6 @@ Devuelve un número entero entre 0 y 2.
             
             # logger.info(f"Selected job: {selected_job}")
             return {"category": action, "all_reminders": False, "reminder_name": job_name}
-
-
-# Paso 2: Clasificación de recordatorios (único o periódico)
-class ReminderType(BaseModel):
-    is_periodic: bool = Field(
-        description=(
-            "A boolean value indicating whether the reminder is periodic "
-            "(True for periodic, False for one-time reminders)."
-        ),
-        example=True
-    )
-
-# Función para encadenar clasificación
-def classify_reminder_type(query, model, parser):
-    """Clasifica si un recordatorio es periódico o único."""
-    prompt = PromptTemplate(
-        template="""Eres un agente que clasifica recordatorios en dos tipos:
-        
-1. **Periódico (True):** El recordatorio tiene una periodicidad (por ejemplo, todos los días, cada lunes, cada semana a las 8 AM).
-2. **Único (False):** El recordatorio ocurre solo una vez (por ejemplo, mañana a las 3 PM).
-
-Devuelve `True` si es periódico o `False` si es único.
-
-.\n{format_instructions}\n{query}\n""",
-        input_variables=["query"],
-        partial_variables={"format_instructions": parser.get_format_instructions()},
-    )
-
-    chain = prompt | model | parser
-    return chain.invoke({"query": query})
 
 
 # Paso 1: Clasificación General
@@ -160,7 +127,6 @@ Devuelve solo el ID numérico correspondiente al recordatorio que el usuario est
     )
     chain = prompt | model | parser
     return chain.invoke({"query": query, "reminders_text": reminders_text})
-
 
 
 def select_job_by_name(update, context, query):
