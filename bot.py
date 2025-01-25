@@ -147,7 +147,7 @@ async def end_second_level(update: Update, context: ContextTypes.DEFAULT_TYPE) -
 
 
 async def stop(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    await update.message.reply_text("Okay, bye.")
+    await update.message.reply_text("Ok, nos vemos!.")
     return END
 
 
@@ -171,6 +171,53 @@ async def error_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
     context.user_data['MESSAGE_TEXT'] = None
     
     await start(update, context)
+    
+async def help(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Send a message when the command /help is issued."""
+    help_text = '''🤖 *Bienvenido a MementoAI 🤖*
+
+MementoAI es un asistente de recordatorios que te ayuda a gestionar tus recordatorios de manera fácil y eficiente.
+
+
+*Comandos*
+
+• `/start`: Inicia la conversación con MementoAI.
+• `/menu`: Muestra el menú principal de MementoAI.
+• `/stop`: Detiene la conversación con MementoAI.
+• `/help`: Muestra esta ayuda para que puedas aprender a utilizar MementoAI.
+
+
+*Funcionalidades*
+
+• Agregar recordatorios
+• Mostrar recordatorios
+• Eliminar recordatorios
+• Agregar recordatorios periódicos
+• Notificaciones diarias de recordatorios
+
+
+*Uso*
+
+1. Inicia la conversación con MementoAI utilizando el comando `/start`.
+2. Puedes interactuar con MementoAI de dos maneras:
+    • Utilizando el menú y los botones para seleccionar la opción que deseas.
+    • Escribiendo o hablando directamente con el bot, y este entenderá y hará lo que le pides. Por ejemplo, puedes decir "Agregar un recordatorio" o "Mostrar mis recordatorios de hoy".
+3. Sigue las instrucciones para agregar, mostrar o eliminar recordatorios.
+
+
+*Notas importantes*
+
+• Cuando veas los iconos `[📝/🎙️]`, significa que puedes escribir o hablar con el bot para darle instrucciones. El icono `📝` representa la escritura de texto, y el icono `🎙️` representa la voz.
+• Puedes utilizar este formato para dar instrucciones al bot en cualquier momento.
+
+
+*Ejemplos de comandos de voz o texto*
+
+• "Agregar un recordatorio para mañana a las 10am"
+• "Mostrar mis recordatorios de hoy"
+• "Eliminar el recordatorio de la reunión de esta tarde"
+'''
+    await update.effective_message.reply_text(help_text, parse_mode="markdown")
 
 def main() -> None:
     application = Application.builder().token(TG_TOKEN).persistence(PostgresPersistence(url=DATABASE_URL)).build()
@@ -231,6 +278,7 @@ def main() -> None:
             CommandHandler("stop", stop),
             CommandHandler("menu", start),
             CommandHandler("start", start),
+            CommandHandler("help", help),
             CallbackQueryHandler(end_second_level, pattern=f"^{str(END)}$"),
             # CallbackQueryHandler(start, pattern=f"^{str(MENU)}$"),
             CallbackQueryHandler(delete_all, pattern=f"^{str(CONFIRMED_DELETE_ALL)}$"),

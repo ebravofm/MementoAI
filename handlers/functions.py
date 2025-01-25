@@ -67,8 +67,8 @@ def cleanup_and_restart(func):
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> str:
     """Selecciona una acción: Agregar recordatorio, mostrar recordatorios o eliminar recordatorios."""
     
-    full_text = "🤖 *Bienvenid@ a MementoAI* 🤖\n\nEstoy aquí para ayudarte a gestionar tus recordatorios de manera fácil y eficiente.\n\n¿En qué puedo ayudarte?"
-    text_then = "¿En qué más puedo ayudarte?"
+    full_text = "🤖 *Bienvenid@ a MementoAI* 🤖\n\nEstoy aquí para ayudarte a gestionar tus recordatorios de manera fácil y eficiente.\n\n¿En qué puedo ayudarte? \[📝/🎙️]"
+    text_then = "¿En qué más puedo ayudarte? \[📝/🎙️]"
     buttons = [
         [
             InlineKeyboardButton(text="📝 Agregar nuevo recordatorio", callback_data=str(ADD)),
