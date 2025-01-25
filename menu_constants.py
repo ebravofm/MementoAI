@@ -13,8 +13,10 @@ SHOW_TODAY = chr(8)
 SHOW_TOMORROW = chr(9)
 SHOW_WEEK = chr(10)
 SHOW_BY_NAME = chr(11)
-START_OVER = chr(12)
-START_WITH_NEW_REPLY = chr(13)
-STOPPING = chr(14)
+DELETE_ALL = chr(12)
+DELETE_BY_NAME = chr(13)
+START_OVER = chr(14)
+START_WITH_NEW_REPLY = chr(15)
+STOPPING = chr(16)
 
 END = ConversationHandler.END

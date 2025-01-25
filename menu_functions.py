@@ -26,6 +26,8 @@ from menu_constants import (
     SHOW_TOMORROW,
     SHOW_WEEK,
     SHOW_BY_NAME,
+    DELETE_ALL,
+    DELETE_BY_NAME,
     START_OVER,
     START_WITH_NEW_REPLY,
     STOPPING,
@@ -44,11 +46,10 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> str:
     buttons = [
         [
             InlineKeyboardButton(text="Agregar nuevo recordatorio", callback_data=str(ADD)),
-            InlineKeyboardButton(text="Mostrar recordatorios", callback_data=str(SHOW)),
         ],
         [
+            InlineKeyboardButton(text="Mostrar recordatorios", callback_data=str(SHOW)),
             InlineKeyboardButton(text="Eliminar recordatorios", callback_data=str(DELETE)),
-            InlineKeyboardButton(text="Terminar", callback_data=str(END)),
         ],
     ]
     keyboard = InlineKeyboardMarkup(buttons)
@@ -85,7 +86,7 @@ async def echo(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     context.user_data[START_OVER] = True
     await start(update, context)
 
-    return END
+    return MENU
 
 async def show_all(update: Update, context: ContextTypes.DEFAULT_TYPE) -> str:
     """Show all reminders."""
@@ -97,7 +98,7 @@ async def show_all(update: Update, context: ContextTypes.DEFAULT_TYPE) -> str:
 
     await start(update, context)
 
-    return END
+    return MENU
 
 async def show_today(update: Update, context: ContextTypes.DEFAULT_TYPE) -> str:
     """Show today's reminders."""
@@ -108,7 +109,7 @@ async def show_today(update: Update, context: ContextTypes.DEFAULT_TYPE) -> str:
     context.user_data[START_WITH_NEW_REPLY] = True
 
     await start(update, context)
-    return END
+    return MENU
 
 async def show_tomorrow(update: Update, context: ContextTypes.DEFAULT_TYPE) -> str:
     """Show tomorrow's reminders."""
@@ -119,7 +120,7 @@ async def show_tomorrow(update: Update, context: ContextTypes.DEFAULT_TYPE) -> s
     context.user_data[START_WITH_NEW_REPLY] = True
 
     await start(update, context)
-    return END
+    return MENU
 
 async def show_week(update: Update, context: ContextTypes.DEFAULT_TYPE) -> str:
     """Show reminders for the next 7 days."""
@@ -130,7 +131,7 @@ async def show_week(update: Update, context: ContextTypes.DEFAULT_TYPE) -> str:
     context.user_data[START_WITH_NEW_REPLY] = True
 
     await start(update, context)
-    return END
+    return MENU
 
 async def show_by_name(update: Update, context: ContextTypes.DEFAULT_TYPE) -> str:
     """Show reminders by name."""
@@ -141,4 +142,27 @@ async def show_by_name(update: Update, context: ContextTypes.DEFAULT_TYPE) -> st
     context.user_data[START_WITH_NEW_REPLY] = True
 
     await start(update, context)
-    return END
+    return MENU
+
+
+async def delete_all(update: Update, context: ContextTypes.DEFAULT_TYPE) -> str:
+    """Delete all reminders."""
+    text = "Borrando todos los recordatorios."
+    await update.callback_query.edit_message_text(text=text, parse_mode="markdown")
+
+    context.user_data[START_OVER] = True
+    context.user_data[START_WITH_NEW_REPLY] = True
+
+    await start(update, context)
+    return MENU
+
+async def delete_by_name(update: Update, context: ContextTypes.DEFAULT_TYPE) -> str:
+    """Delete reminders by name."""
+    text = "Borrando los recordatorios por nombre."
+    await update.callback_query.edit_message_text(text=text, parse_mode="markdown")
+
+    context.user_data[START_OVER] = True
+    context.user_data[START_WITH_NEW_REPLY] = True
+
+    await start(update, context)
+    return MENU
