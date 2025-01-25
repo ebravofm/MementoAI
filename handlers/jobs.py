@@ -11,34 +11,6 @@ from collections import defaultdict
 import pickle
 
 
-async def list_jobs(update, context, start_date: datetime = None, end_date: datetime = None, header="Recordatorios Programados"):
-    """Lists all scheduled jobs in the JobQueue grouped by day."""
-    # Filtrar trabajos usando la función filter_jobs
-    jobs = filter_jobs(context, start_date=start_date, end_date=end_date, chat_id=update.message.chat_id, job_type='parent')
-
-    if not jobs:
-        await update.message.reply_text("No hay recordatorios programados.")
-        return
-
-    # Agrupar trabajos por día
-    jobs_by_day = defaultdict(list)
-    for job in jobs:
-        if job.data and "Time" in job.data and "Title" in job.data:
-            job_day = job.next_run_time.date()
-            jobs_by_day[job_day].append(job)
-
-    # Formatear la lista de trabajos por día
-    message = f"*{header}:*\n"
-    for day, jobs in sorted(jobs_by_day.items()):
-        day_str = day.strftime("%A %d %B")  # Ejemplo: Tuesday 23 January 2025
-        message += f"\n*{day_str}*:\n"
-        message += "\n".join(
-            [f"  - {job.data['Time'].strftime('%H:%M')}: {job.data['Title']}" for job in jobs]
-        )
-        message += "\n"
-
-    # Enviar el mensaje al usuario
-    await update.message.reply_text(message, parse_mode="markdown")
 
 
 def filter_jobs(context, start_date: datetime = None, end_date: datetime = None, chat_id: int = None, job_type: str = 'parent', name: str = None) -> list:
@@ -64,6 +36,7 @@ def filter_jobs(context, start_date: datetime = None, end_date: datetime = None,
         (name is None or name in job.name)
     ]
     return filtered_jobs
+
 
 def remove_job_if_exists(name: str, context: ContextTypes.DEFAULT_TYPE) -> bool:
     """Remove job with given name. Returns whether job was removed."""
@@ -124,14 +97,3 @@ def get_jobs_from_db():
     
     return job_states
 
-
-def delete_jobs(update, context, start_date: datetime = None, end_date: datetime = None, chat_id: int = None, name: str = None):
-    """Delete jobs from the JobQueue and the database."""
-    jobs = filter_jobs(context, start_date=start_date, end_date=end_date, chat_id=chat_id, name=name, job_type=None)
-    if not jobs:
-        #update.message.reply_text("No se encontraron trabajos para eliminar.")
-        context.bot.send_message(chat_id=chat_id, text="No se encontraron trabajos para eliminar.")
-        return
-
-    for job in jobs:
-        job.schedule_removal()

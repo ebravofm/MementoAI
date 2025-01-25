@@ -4,7 +4,7 @@ from utils.logger import logger, tz
 from handlers.jobs import get_jobs_from_db
 
 from datetime import datetime, timedelta, time
-from handlers.jobs import filter_jobs, delete_jobs
+from handlers.jobs import filter_jobs
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup
 
     
@@ -64,16 +64,6 @@ def schedule_daily_notification(job_queue, callback, job_name):
     )
     print(f"Scheduled job '{job_name}' to run daily at {daily_time}.")
     
-async def show_reminder(update, context, name):
-    """Show a reminder by its name."""
-    jobs = filter_jobs(context, start_date=None, end_date=None, chat_id=update.message.chat_id, job_type='parent', name=name)
-    if not jobs:
-        await update.message.reply_text(f"No se encontró el recordatorio '{name}'.")
-        return
-
-    job = jobs[0]
-    await update.message.reply_text(job.data['text'], parse_mode="markdown")
-    
 # async def delete_all_confirmation(update, context):
 #     """Confirmar eliminación de todos los recordatorios."""
 #     text = "¿Estás seguro de que deseas eliminar todos los recordatorios? Esta acción es irreversible."
@@ -129,7 +119,7 @@ async def delete_reminder_confirmation(update, context, name):
         await update.message.reply_text(text=text, reply_markup=keyboard, parse_mode="markdown")
         
         
-async def delete_callback(update, context):
+'''async def delete_callback(update, context):
     """Eliminar recordatorios."""
     if update.callback_query.data == "DELETE_ALL":
         delete_jobs(update, context, start_date=None, end_date=None, chat_id=update.effective_chat.id, name=None)
@@ -142,4 +132,4 @@ async def delete_callback(update, context):
         await update.callback_query.edit_message_text(text="Se borró el recordatorio seleccionado.")
     elif update.callback_query.data == "CANCELAR":
         await update.callback_query.answer()
-        await update.callback_query.edit_message_text(text="Operación cancelada.")
+        await update.callback_query.edit_message_text(text="Operación cancelada.")'''

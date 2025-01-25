@@ -161,3 +161,18 @@ Devuelve solo el ID numérico correspondiente al recordatorio que el usuario est
     chain = prompt | model | parser
     return chain.invoke({"query": query, "reminders_text": reminders_text})
 
+
+
+def select_job_by_name(update, context, query):
+    query = update.effective_message.text
+    jobs = filter_jobs(context, start_date=None, end_date=None, chat_id=update.effective_message.chat_id, job_type='parent')
+    reminders_text = ""
+    for i, job in enumerate(jobs):
+        reminders_text += f'[{i}]' + reminder_to_text(job.data) + "\n"
+
+    id_parser = JsonOutputParser(pydantic_object=SelectReminderID)
+    selected_id = int(select_reminder_id(query, reminders_text, model, id_parser)['reminder_id'])
+    
+    job_name = jobs[selected_id].name
+    
+    return job_name
