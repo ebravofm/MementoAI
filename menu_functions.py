@@ -55,7 +55,23 @@ from menu_constants import (
 )
 
 from datetime import datetime, timedelta
+from functools import wraps
 
+
+
+def cleanup_and_restart(func):
+    @wraps(func)
+    async def wrapper(update: Update, context: ContextTypes.DEFAULT_TYPE, *args, **kwargs):
+        result = await func(update, context, *args, **kwargs)
+        
+        context.user_data['START_OVER'] = True
+        context.user_data['START_WITH_NEW_REPLY'] = True
+        context.user_data['MESSAGE_TEXT'] = None
+        
+        await start(update, context)
+        return MENU
+        
+    return wrapper
 
 
 # Top level conversation callbacks
@@ -93,8 +109,6 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> str:
         # await update.message.reply_text(text=text, reply_markup=keyboard)
         await context.bot.send_message(update.effective_chat.id, text="Hola! Soy tu asistente de recordatorios. ¿En qué puedo ayudarte hoy?")
         await context.bot.send_message(update.effective_chat.id, text=text, reply_markup=keyboard)
-        
-        
 
     context.user_data[START_OVER] = False
     context.user_data[START_WITH_NEW_REPLY] = False
@@ -115,6 +129,7 @@ async def echo(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     return MENU
 
 
+@cleanup_and_restart
 async def add_reminder_timer(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     
     await handle_audio_or_text(update, context)
@@ -168,25 +183,18 @@ async def add_reminder_timer(update: Update, context: ContextTypes.DEFAULT_TYPE)
             data=reminder,
         )
 
-
         # Confirmation message
         await update.effective_message.reply_text('Se agendó el siguiente recordatorio:', parse_mode="markdown")
         await update.effective_message.reply_text(reminder['text'], parse_mode="markdown")
         
-        context.user_data[START_OVER] = True
-        context.user_data[START_WITH_NEW_REPLY] = True
-
-        await start(update, context)
 
     except (IndexError, ValueError) as e:
         await update.effective_message.reply_text(f"An error occurred: {str(e)}")
-        
-    finally:
-        context.user_data['MESSAGE_TEXT'] = None
-        
+                
     return MENU
 
 
+@cleanup_and_restart
 async def show_all(update, context, start_date: datetime = None, end_date: datetime = None, header="Recordatorios Programados"):
     """Lists all scheduled jobs in the JobQueue grouped by day."""
     # Filtrar trabajos usando la función filter_jobs
@@ -198,13 +206,8 @@ async def show_all(update, context, start_date: datetime = None, end_date: datet
             await update.callback_query.edit_message_text("No hay recordatorios programados.")
         except AttributeError:
             await update.effective_message.reply_text("No hay recordatorios programados.")
-            
-        context.user_data[START_OVER] = True
-        context.user_data[START_WITH_NEW_REPLY] = True
 
-        await start(update, context)
-
-        return MENU
+        return
 
     # Agrupar trabajos por día
     jobs_by_day = defaultdict(list)
@@ -229,79 +232,30 @@ async def show_all(update, context, start_date: datetime = None, end_date: datet
     except AttributeError:
         await update.effective_message.reply_text(message, parse_mode="markdown")
         
-    logger.info(context.user_data)
-    logger.info(context.chat_data)
 
-        
-    context.user_data[START_OVER] = True
-    context.user_data[START_WITH_NEW_REPLY] = True
-
-    await start(update, context)
-    
-    return MENU
-
-
+@cleanup_and_restart
 async def show_today(update: Update, context: ContextTypes.DEFAULT_TYPE) -> str:
     """Show today's reminders."""
     today = datetime.now()
     await show_all(update, context, start_date=today, end_date=today, header="Recordatorios Programados para Hoy")
     
-    context.user_data[START_OVER] = True
-    context.user_data[START_WITH_NEW_REPLY] = True
-
-    await start(update, context)
     
-    return MENU
-
-
+@cleanup_and_restart
 async def show_tomorrow(update: Update, context: ContextTypes.DEFAULT_TYPE) -> str:
     """Show tomorrow's reminders."""
     tomorrow = datetime.now() + timedelta(days=1)
     await show_all(update, context, start_date=tomorrow, end_date=tomorrow, header="Recordatorios Programados para Mañana")
-    
-    context.user_data[START_OVER] = True
-    context.user_data[START_WITH_NEW_REPLY] = True
-    
-    await start(update, context)
-    
-    return MENU
 
+
+@cleanup_and_restart
 async def show_week(update: Update, context: ContextTypes.DEFAULT_TYPE) -> str:
     """Show reminders for the next 7 days."""
     today = datetime.now()
     await show_all(update, context, start_date=today, end_date=today + timedelta(days=7), header="Recordatorios Programados para la Semana")
     
-    context.user_data[START_OVER] = True
-    context.user_data[START_WITH_NEW_REPLY] = True
     
-    await start(update, context)
-    
-    return MENU 
 
 
-async def show_by_name(update: Update, context: ContextTypes.DEFAULT_TYPE) -> str:
-    """Show reminder by name."""
-    name = select_job_by_name(update, context, update.effective_message.text)
-    jobs = filter_jobs(context, start_date=None, end_date=None, chat_id=update.effective_message.chat_id, job_type='parent', name=name)
-    if not jobs:
-        await update.message.reply_text(f"No se encontró el recordatorio '{name}'.")
-        
-        context.user_data[START_OVER] = True
-        context.user_data[START_WITH_NEW_REPLY] = True
-        
-        await start(update, context)
-        return MENU
-
-    job = jobs[0]
-    
-    await update.effective_message.reply_text(job.data['text'], parse_mode="markdown")
-    
-    context.user_data[START_OVER] = True
-    context.user_data[START_WITH_NEW_REPLY] = True
-    
-    await start(update, context)
-    
-    return MENU
 
 async def confirm_delete_all(update: Update, context: ContextTypes.DEFAULT_TYPE) -> str:
     text = "¿Estás seguro de que deseas eliminar todos los recordatorios? Esta acción es irreversible."
@@ -320,7 +274,7 @@ async def confirm_delete_all(update: Update, context: ContextTypes.DEFAULT_TYPE)
     return CONFIRM_DELETE_ALL
 
     
-
+@cleanup_and_restart
 async def delete_all(update: Update, context: ContextTypes.DEFAULT_TYPE) -> str:
     """Delete all reminders."""
     logger.info("Deleting all jobs.")
@@ -332,11 +286,7 @@ async def delete_all(update: Update, context: ContextTypes.DEFAULT_TYPE) -> str:
         except:
             await update.effective_message.reply_text("No se encontraron trabajos para eliminar.")
         
-        context.user_data[START_OVER] = True
-        context.user_data[START_WITH_NEW_REPLY] = True
-        
-        await start(update, context)
-        return MENU
+        return 
 
     for job in jobs:
         job.schedule_removal()   
@@ -347,41 +297,24 @@ async def delete_all(update: Update, context: ContextTypes.DEFAULT_TYPE) -> str:
     except AttributeError:
         await update.effective_message.reply_text(text=text, parse_mode="markdown")
         
-    context.user_data[START_OVER] = True
-    context.user_data[START_WITH_NEW_REPLY] = True
 
-    await start(update, context)
-    return MENU
-
-
-async def show_by_name(update: Update, context: ContextTypes.DEFAULT_TYPE) -> str:
+@cleanup_and_restart
+async def show_by_name(update: Update, context: ContextTypes.DEFAULT_TYPE, name=None) -> str:
     """Show reminder by name."""
     await handle_audio_or_text(update, context)
     query = context.user_data.get('MESSAGE_TEXT')
     
-    name = select_job_by_name(update, context, query)
+    if not name:
+        name = select_job_by_name(update, context, query)
     jobs = filter_jobs(context, start_date=None, end_date=None, chat_id=update.effective_message.chat_id, job_type='parent', name=name)
     if not jobs:
         await update.effective_message.reply_text(f"No se encontró el recordatorio '{name}'.")
         
-        context.user_data[START_OVER] = True
-        context.user_data[START_WITH_NEW_REPLY] = True
-        
-        await start(update, context)
-        return MENU
+        return
 
     job = jobs[0]
     
     await update.effective_message.reply_text(job.data['text'], parse_mode="markdown")
-    
-    context.user_data[START_OVER] = True
-    context.user_data[START_WITH_NEW_REPLY] = True
-    context.user_data['MESSAGE_TEXT'] = None
-    
-    await start(update, context)
-    
-    return MENU
-
 
 
 async def confirm_delete_by_name(update: Update, context: ContextTypes.DEFAULT_TYPE) -> str:
@@ -414,6 +347,7 @@ async def confirm_delete_by_name(update: Update, context: ContextTypes.DEFAULT_T
     return CONFIRM_DELETE_BY_NAME
 
 
+@cleanup_and_restart
 async def delete_by_name(update: Update, context: ContextTypes.DEFAULT_TYPE) -> str:
     """Delete reminders by name."""
     name = context.user_data['JOB_TO_DELETE']
@@ -423,11 +357,7 @@ async def delete_by_name(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     if not jobs:
         await update.message.reply_text(f"No se encontró el recordatorio '{name}'.")
         
-        context.user_data[START_OVER] = True
-        context.user_data[START_WITH_NEW_REPLY] = True
-        
-        await start(update, context)
-        return MENU
+        return
 
     for job in jobs:
         job.schedule_removal()
@@ -437,13 +367,6 @@ async def delete_by_name(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     except AttributeError:
         await update.effective_message.reply_text(f"El recordatorio '{name}' ha sido eliminado.")
     
-    context.user_data[START_OVER] = True
-    context.user_data[START_WITH_NEW_REPLY] = True
-    context.user_data['MESSAGE_TEXT'] = None
-    
-    await start(update, context)
-    
-    return MENU
 
 
 async def categorize_and_reply(update, context):
@@ -468,7 +391,7 @@ async def crossroad(update, context, response):
         if response["all_reminders"]:
             await show_all(update, context)
         else:
-            await show_by_name(update, context)
+            await show_by_name(update, context, name=response["reminder_name"])
 
     elif response["category"] == "delete":
         if response["all_reminders"]:

@@ -156,6 +156,20 @@ async def end(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     await update.callback_query.edit_message_text(text=text)
     return END
 
+async def error_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Log the error and send a message to the user."""
+    logger.error(msg="Exception while handling an update:", exc_info=context.error)
+    try:
+        await update.callback_query.message.reply_text("Se produjo un error, volviendo al menú principal.")
+    except AttributeError:
+        await update.effective_message.reply_text("Se produjo un error, volviendo al menú principal.")
+    
+    # Limpiar el estado y volver al menú principal
+    context.user_data['START_OVER'] = True
+    context.user_data['START_WITH_NEW_REPLY'] = True
+    context.user_data['MESSAGE_TEXT'] = None
+    
+    await start(update, context)
 
 def main() -> None:
     application = Application.builder().token(TG_TOKEN).persistence(PostgresPersistence(url=DATABASE_URL)).build()
@@ -214,6 +228,7 @@ def main() -> None:
         ],
     )
     application.add_handler(conv_handler)
+    application.add_error_handler(error_handler)
     application.run_polling(allowed_updates=Update.ALL_TYPES)
 
 
