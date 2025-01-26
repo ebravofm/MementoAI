@@ -25,8 +25,8 @@ def filter_jobs(context, start_date: datetime = None, end_date: datetime = None,
     filtered_jobs = [
         job for job in jobs
         if job.data is not None and
-        (start_date is None or start_date.date() <= job.data['Time'].date()) and
-        (end_date is None or job.data['Time'].date() <= end_date.date()) and
+        (start_date is None or start_date.date() <= job.next_run_time.date()) and
+        (end_date is None or job.next_run_time.date() <= end_date.date()) and
         (chat_id is None or job.data['chat_id'] == chat_id) and
         (job_type is None or job.data.get('type') == job_type) and
         (name is None or name in job.name)

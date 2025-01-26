@@ -47,18 +47,31 @@ async def handle_audio_or_text(update, context):
         
 def reminder_to_text(reminder, header = "📆 *Recordatorio*📆\n") -> str:
     
-    reminder['Time_String'] = reminder['Time'].strftime("%H:%M %d/%m/%Y")
-    
-    text = header
-    if reminder['Title']:
-        text += f"\n*Evento*: {reminder['Title']}"
-    if reminder['Time']:
-        text += f"\n*Fecha*: {reminder['Time_String']}"
-    if reminder['Location']:
-        text += f"\n*Ubicación*: {reminder['Location']}"
-    if reminder['Details']:
-        text += f"\n*Detalle*: {reminder['Details']}"
-    
-    return text
-
+    if reminder['run'] == 'once':
+        reminder['Time_String'] = reminder['Time'].strftime("%H:%M %d/%m/%Y")
         
+        text = header
+        if reminder['Title']:
+            text += f"\n*Evento*: {reminder['Title']}"
+        if reminder['Time']:
+            text += f"\n*Fecha*: {reminder['Time_String']}"
+        if reminder['Location']:
+            text += f"\n*Ubicación*: {reminder['Location']}"
+        if reminder['Details']:
+            text += f"\n*Detalle*: {reminder['Details']}"
+        
+    elif reminder['run'] == 'periodic':
+        reminder['Time_String'] = reminder['Time'].strftime("%H:%M")
+        days_of_week = ["Domingo", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado"]
+        text = header
+        if reminder['Title']:
+            text += f"\n*Evento*: {reminder['Title']} (Periódico)"
+        if reminder['Days']:
+            text += f"\n*Días*:"
+            text += ", ".join(days_of_week[day] for day in reminder['Days'])
+        if reminder['Time']:
+            text += f"\n*Hora*: {reminder['Time_String']}"
+        if reminder['Details']:
+            text += f"\n*Detalles*: {reminder['Details']}"
+        
+    return text            

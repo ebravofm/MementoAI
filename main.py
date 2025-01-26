@@ -33,8 +33,8 @@ from utils.constants import (
 
 from handlers.delete import delete, confirm_delete_all, delete_all, confirm_delete_by_name, delete_by_name, listening_to_delete_by_name
 from handlers.show import show, show_all, show_today, show_tomorrow, show_week, show_by_name, listening_to_show_by_name
+from handlers.add import add, add_periodic, add_reminder_timer, add_periodic_reminder_timer
 from commands import start, stop, help, error_handler, end_second_level
-from handlers.add import add, add_periodic, add_reminder_timer
 from handlers.misc import echo, categorize_and_reply
 
 from functions.notifications import notify_next_day_jobs_callback, schedule_daily_notification
@@ -78,7 +78,7 @@ def main() -> None:
                 CallbackQueryHandler(add_periodic, pattern=f"^{str(ADD_PERIODIC)}$"),
                 MessageHandler(filters.VOICE | (filters.TEXT & ~filters.COMMAND), add_reminder_timer),
             ],
-            LISTENING_PERIODIC_REMINDER: [MessageHandler(filters.VOICE | (filters.TEXT & ~filters.COMMAND), echo)],
+            LISTENING_PERIODIC_REMINDER: [MessageHandler(filters.VOICE | (filters.TEXT & ~filters.COMMAND), add_periodic_reminder_timer)],
             SHOW: [
                 CallbackQueryHandler(show_all, pattern=f"^{str(SHOW_ALL)}$"),
                 CallbackQueryHandler(show_today, pattern=f"^{str(SHOW_TODAY)}$"),
@@ -123,3 +123,4 @@ if __name__ == "__main__":
 # - Add periodic reminders
 # - multilanguage support
 # - Add tests
+# al mostrar todos los recordatorios, distinguir entre run=once y run=periodic

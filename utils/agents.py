@@ -5,12 +5,12 @@ from langchain.globals import set_debug
 
 from datetime import datetime
 
-from utils.pydantic_models import CategorizePrompt, AllOrOnePrompt, SelectReminderID, LogReminder
+from utils.pydantic_models import CategorizePrompt, AllOrOnePrompt, SelectReminderID, LogReminder, DailyReminder
 from functions.jobs import filter_jobs, get_job_queue_text
 from utils.misc import reminder_to_text
 from utils.logger import logger
 from config import DI_TOKEN
-
+import re
 
 # set_debug(True)
 
@@ -90,6 +90,29 @@ def reminder_from_prompt(reminder_query: str) -> LogReminder:
     return response
 
 
+def periodic_reminder_from_prompt(reminder_query: str) -> DailyReminder:
+    # Set up a parser + inject instructions into the prompt template.
+    parser = JsonOutputParser(pydantic_object=DailyReminder)
+
+    now = datetime.now()
+
+    prompt = PromptTemplate(
+        template="Convierte el prompt al formato solicitado. Si no se especifican detalles, deja ese campo vacío. \n{format_instructions}\n{query}\n",
+        input_variables=["query"],
+        partial_variables={"format_instructions": parser.get_format_instructions(), "formatted_now": now.strftime("%Y-%m-%dT%H:%M:%SZ")},
+    )
+
+    chain = prompt | model | parser
+
+    response = chain.invoke({"query": reminder_query})
+    
+    time_regex = re.compile(r'(\d{2}:\d{2})')
+    time_string = time_regex.search(response['Time']).groups()[0]
+    response['Time'] = datetime.strptime(time_string, "%H:%M").time()
+    
+    return response
+
+
 def decide_all_or_one(query, model, parser):
     """Decide if the action applies to all reminders or one specific reminder."""
     prompt = PromptTemplate(
@@ -121,25 +144,6 @@ Devuelve solo el ID numérico correspondiente al recordatorio que el usuario est
     )
     chain = prompt | model | parser
     return chain.invoke({"query": query, "reminders_text": reminders_text})
-
-
-def classify_reminder_type(query, model, parser):
-    """Clasifica si un recordatorio es periódico o único."""
-    prompt = PromptTemplate(
-        template="""Eres un agente que clasifica recordatorios en dos tipos:
-        
-1. **Periódico (True):** El recordatorio tiene una periodicidad (por ejemplo, todos los días, cada lunes, cada semana a las 8 AM).
-2. **Único (False):** El recordatorio ocurre solo una vez (por ejemplo, mañana a las 3 PM).
-
-Devuelve `True` si es periódico o `False` si es único.
-
-.\n{format_instructions}\n{query}\n""",
-        input_variables=["query"],
-        partial_variables={"format_instructions": parser.get_format_instructions()},
-    )
-
-    chain = prompt | model | parser
-    return chain.invoke({"query": query})
 
 
 def decide_all_or_one(query, model, parser):

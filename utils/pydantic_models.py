@@ -1,4 +1,5 @@
 from pydantic import BaseModel, Field
+from typing import Tuple
 
 
 class LogReminder(BaseModel):
@@ -81,4 +82,21 @@ class SelectReminderID(BaseModel):
     reminder_id: int = Field(
         description="The numeric ID of the reminder that the user wants to select.",
         example=42
+    )
+
+    
+class DailyReminder(BaseModel):
+    Time: str = Field(
+        description="The time for the reminder, formatted as an ISO 8601 time string."
+    )
+    Days: Tuple[int, ...] = Field(
+        default=(0, 1, 2, 3, 4, 5, 6),
+        description="Defines on which days of the week the job should run (where 0-6 correspond to sunday - saturday). By default, the job will run every day."
+    )
+    Title: str = Field(
+        description="The title of the reminder."
+    )
+    Details: str = Field(
+        default='',
+        description="Any additional details if there are any."
     )

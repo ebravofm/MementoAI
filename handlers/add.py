@@ -2,7 +2,8 @@ from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.ext import ContextTypes
 
 from utils.misc import cleanup_and_restart, handle_audio_or_text
-from utils.agents import reminder_from_prompt, reminder_to_text
+from utils.agents import reminder_from_prompt, periodic_reminder_from_prompt
+from utils.misc import reminder_to_text
 from functions.notifications import alarm, alarm_minus_30
 from functions.jobs import remove_job_if_exists
 from utils.logger import logger, tz
@@ -61,6 +62,7 @@ async def add_reminder_timer(update: Update, context: ContextTypes.DEFAULT_TYPE)
     timer_date_string = timer_date.strftime("%H:%M %d/%m/%Y")
 
     timer_name = f"{reminder['Title']} ({timer_date_string})"
+    reminder['run'] = 'once'
     reminder['text'] = reminder_to_text(reminder)
 
     try:
@@ -89,6 +91,55 @@ async def add_reminder_timer(update: Update, context: ContextTypes.DEFAULT_TYPE)
         context.job_queue.run_once(
             alarm_minus_30,
             when=timer_date - timedelta(minutes=30),
+            chat_id=chat_id,
+            name=timer_name,
+            data=reminder,
+        )
+
+        # Confirmation message
+        await update.effective_message.reply_text('Se agendó el siguiente recordatorio:', parse_mode="markdown")
+        await update.effective_message.reply_text(reminder['text'], parse_mode="markdown")
+        
+
+    except (IndexError, ValueError) as e:
+        await update.effective_message.reply_text(f"An error occurred: {str(e)}")
+                
+    return MENU
+
+
+@cleanup_and_restart
+async def add_periodic_reminder_timer(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    
+    await handle_audio_or_text(update, context)
+    query = context.user_data.get(MESSAGE_TEXT)
+
+    logger.info(f"Test: {query}")
+
+    chat_id = update.effective_chat.id
+    # Generate reminder from the text
+    reminder = periodic_reminder_from_prompt(query)
+    reminder['chat_id'] = chat_id
+
+    logger.info(f"Reminder: {reminder}")
+
+    # Convert the reminder time to a localized datetime object
+    timer_date = reminder['Time'].replace(tzinfo=tz)
+    # timer_date = tz.localize(timer_date)
+    timer_date_string = timer_date.strftime("%H:%M:%S")
+
+    timer_name = f"{reminder['Title']} ({reminder['Days']})"
+    reminder['run'] = 'periodic'
+    reminder['text'] = reminder_to_text(reminder)
+
+    try:
+        # Remove existing jobs with the same name and add the new one
+        job_removed = remove_job_if_exists(timer_name, context)
+        
+        reminder['type'] = 'parent'
+        context.job_queue.run_daily(
+            alarm,
+            time=timer_date,
+            days=reminder['Days'],
             chat_id=chat_id,
             name=timer_name,
             data=reminder,
