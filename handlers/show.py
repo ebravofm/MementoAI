@@ -57,7 +57,7 @@ async def listening_to_show_by_name(update: Update, context: ContextTypes.DEFAUL
 
 
 @cleanup_and_restart
-async def show_all(update, context, start_date: datetime = None, end_date: datetime = None, header="Recordatorios Programados"):
+async def show_all(update, context, start_date: datetime = None, end_date: datetime = None, header="Recordatorios Programados", show_periodic=True):
     """Lists all scheduled jobs in the JobQueue grouped by day."""
     # Filtrar trabajos usando la función filter_jobs
     chat_id = update.effective_chat.id
@@ -88,6 +88,19 @@ async def show_all(update, context, start_date: datetime = None, end_date: datet
             [f"    {job.data['Time'].strftime('%H:%M')}: {job.data['Title']}" for job in jobs]
         )
         message += "\n"
+        
+    #     example
+    #     {'Time': datetime.time(23, 0),
+    #  'Days': [0, 2, 4, 6],
+    #  'Title': 'Tarea de matemáticas',
+    #  'Details': ''}
+    if show_periodic:
+        days_of_week = ["Domingo", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado"]
+        message += "\n\n📅 *Recordatorios Periódicos* 📅:\n"
+        for job in jobs:
+            if job.data['run'] == 'periodic':
+                days = ", ".join(days_of_week[day] for day in job.data['Days']) if len(job.data['Days']) < 7 else "Todos los días"
+                message += f"\n    *• {job.data['Title']}* ({days} a las {job.data['Time'].strftime('%H:%M')})"
 
     # Enviar el mensaje al usuario
     try:
@@ -99,21 +112,21 @@ async def show_all(update, context, start_date: datetime = None, end_date: datet
 async def show_today(update: Update, context: ContextTypes.DEFAULT_TYPE) -> str:
     """Show today's reminders."""
     today = datetime.now()
-    await show_all(update, context, start_date=today, end_date=today, header="Recordatorios Programados para Hoy")
+    await show_all(update, context, start_date=today, end_date=today, header="Recordatorios Programados para Hoy", show_periodic=False)
     return MENU
     
     
 async def show_tomorrow(update: Update, context: ContextTypes.DEFAULT_TYPE) -> str:
     """Show tomorrow's reminders."""
     tomorrow = datetime.now() + timedelta(days=1)
-    await show_all(update, context, start_date=tomorrow, end_date=tomorrow, header="Recordatorios Programados para Mañana")
+    await show_all(update, context, start_date=tomorrow, end_date=tomorrow, header="Recordatorios Programados para Mañana", show_periodic=False)
     return MENU
 
 
 async def show_week(update: Update, context: ContextTypes.DEFAULT_TYPE) -> str:
     """Show reminders for the next 7 days."""
     today = datetime.now()
-    await show_all(update, context, start_date=today, end_date=today + timedelta(days=7), header="Recordatorios Programados para la Semana")
+    await show_all(update, context, start_date=today, end_date=today + timedelta(days=7), header="Recordatorios Programados para la Semana", show_periodic=False)
     return MENU
 
 

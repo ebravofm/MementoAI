@@ -15,12 +15,6 @@ from utils.constants import (
     DELETE
 )
 
-import locale
-locale.setlocale(locale.LC_TIME, "es_ES")
-
-
-
-
 
 async def end_second_level(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     context.user_data[START_OVER] = True
@@ -53,6 +47,8 @@ async def error_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
     context.user_data['MESSAGE_TEXT'] = None
     
     await start(update, context)
+    
+    return MENU
     
 async def help(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Send a message when the command /help is issued."""
