@@ -1,16 +1,12 @@
 from telegram.ext import ContextTypes
-from telegram import Update
 
+from utils.misc import reminder_to_text
 from config import DATABASE_URL
-from utils.logger import logger
 
 from sqlalchemy import create_engine, MetaData, Table
 from sqlalchemy.orm import sessionmaker
-from datetime import datetime, timedelta
-from collections import defaultdict
+from datetime import datetime
 import pickle
-
-
 
 
 def filter_jobs(context, start_date: datetime = None, end_date: datetime = None, chat_id: int = None, job_type: str = 'parent', name: str = None) -> list:
@@ -97,3 +93,12 @@ def get_jobs_from_db():
     
     return job_states
 
+
+def get_job_queue_text(update, context):
+    jobs = filter_jobs(context, start_date=None, end_date=None, chat_id=update.message.chat_id, job_type='parent')
+    text = ""
+    for i, job in enumerate(jobs):
+        text += f'[{i}]' + reminder_to_text(job.data) + "\n"
+        
+    return text
+    

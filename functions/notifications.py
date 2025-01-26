@@ -1,19 +1,9 @@
-from telegram.ext import CallbackContext
+from telegram.ext import CallbackContext, ContextTypes
 
-from utils.logger import tz
-from handlers.jobs import get_jobs_from_db
-
-from datetime import datetime, timedelta, time
-from handlers.jobs import filter_jobs
-
-from telegram.ext import ContextTypes
-from telegram import Update
-
-from utils.agents import reminder_from_prompt, reminder_to_text
-from handlers.jobs import remove_job_if_exists
+from functions.jobs import get_jobs_from_db, filter_jobs
 from utils.logger import logger, tz
 
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, time
 
 
 async def alarm(context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -31,6 +21,7 @@ async def alarm_minus_30(context: ContextTypes.DEFAULT_TYPE) -> None:
     text = 'Faltan *30 minutos* para:\n' + job.data['Title']
     
     await context.bot.send_message(job.chat_id, text=text, parse_mode="markdown")
+
 
 async def notify_next_day_jobs(update, context):
     """Lists all scheduled jobs for the next day in the JobQueue."""
@@ -60,6 +51,7 @@ async def notify_next_day_jobs(update, context):
             f"*Recordatorios para mañana:*\n\n{job_list}",
             parse_mode="markdown",
         )
+
 
 def schedule_daily_notification(job_queue, callback, job_name):
     """Schedules a daily task at 11 PM if it is not already scheduled."""
