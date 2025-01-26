@@ -80,12 +80,12 @@ async def show_all(update, context, start_date: datetime = None, end_date: datet
 
     # Formatear la lista de trabajos por día
     message = f"📅 *{header}* 📅:\n"
-    for day, jobs in sorted(jobs_by_day.items()):
+    for day, jobs_ in sorted(jobs_by_day.items()):
         day_str = day.strftime("%A %d/%B") 
         day_str = day_str.title()
         message += f"\n*{day_str}*:\n"
         message += "\n".join(
-            [f"    {job.data['Time'].strftime('%H:%M')}: {job.data['Title']}" for job in jobs]
+            [f"    {job.data['Time'].strftime('%H:%M')}: {job.data['Title']}" for job in jobs_]
         )
         message += "\n"
         
