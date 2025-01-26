@@ -97,6 +97,11 @@ MementoAI es un asistente de recordatorios que te ayuda a gestionar tus recordat
 '''
     await update.effective_message.reply_text(help_text, parse_mode="markdown")
     
+    await start(update, context)
+    
+    return MENU
+
+    
 
 
 # Top level conversation callbacks

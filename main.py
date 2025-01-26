@@ -120,7 +120,7 @@ if __name__ == "__main__":
     
     
 # TODO:
-# - Add periodic reminders
+# - add palceholder for slow responses
 # - multilanguage support
 # - Add tests
-# al mostrar todos los recordatorios, distinguir entre run=once y run=periodic
+# - agregar recordatorio semanal los domingos en la noche

@@ -33,7 +33,7 @@ async def add(update: Update, context: ContextTypes.DEFAULT_TYPE) -> str:
 
 
 async def add_periodic(update: Update, context: ContextTypes.DEFAULT_TYPE) -> str:
-    text = "Por favor, escribe el recordatorio que deseas agregar."
+    text = "Por favor, escribe el recordatorio que deseas agregar. \[📝/🎙️]"
     keyboard = InlineKeyboardMarkup([
         [InlineKeyboardButton(text="Atrás", callback_data=str(END))]
     ])

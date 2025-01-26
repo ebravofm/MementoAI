@@ -68,7 +68,7 @@ def reminder_to_text(reminder, header = "📆 *Recordatorio*📆\n") -> str:
             text += f"\n*Evento*: {reminder['Title']} (Periódico)"
         if reminder['Days']:
             text += f"\n*Días*:"
-            text += ", ".join(days_of_week[day] for day in reminder['Days'])
+            text += ", ".join(days_of_week[day] for day in reminder['Days']) if len(reminder['Days']) < 7 else "Todos los días"
         if reminder['Time']:
             text += f"\n*Hora*: {reminder['Time_String']}"
         if reminder['Details']:

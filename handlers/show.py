@@ -2,6 +2,7 @@ from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.ext import ContextTypes
 
 from utils.misc import cleanup_and_restart, handle_audio_or_text
+from utils.logger import logger
 from utils.agents import select_job_by_name
 from functions.jobs import filter_jobs
 from utils.constants import (
@@ -68,7 +69,6 @@ async def show_all(update, context, start_date: datetime = None, end_date: datet
             await update.callback_query.edit_message_text("No hay recordatorios programados.")
         except AttributeError:
             await update.effective_message.reply_text("No hay recordatorios programados.")
-
         return
 
     # Agrupar trabajos por día
@@ -89,16 +89,14 @@ async def show_all(update, context, start_date: datetime = None, end_date: datet
         )
         message += "\n"
         
-    #     example
-    #     {'Time': datetime.time(23, 0),
-    #  'Days': [0, 2, 4, 6],
-    #  'Title': 'Tarea de matemáticas',
-    #  'Details': ''}
-    if show_periodic:
+    # Mostrar recordatorios periódicos
+    if show_periodic and any(job.data['run'] == 'periodic' for job in jobs):
         days_of_week = ["Domingo", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado"]
         message += "\n\n📅 *Recordatorios Periódicos* 📅:\n"
+        logger.info(jobs)
         for job in jobs:
             if job.data['run'] == 'periodic':
+                logger.info(job.data)
                 days = ", ".join(days_of_week[day] for day in job.data['Days']) if len(job.data['Days']) < 7 else "Todos los días"
                 message += f"\n    *• {job.data['Title']}* ({days} a las {job.data['Time'].strftime('%H:%M')})"
 
