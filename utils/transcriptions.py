@@ -17,7 +17,7 @@ async def transcribe_voice(voice_file):
     audio_buffer.seek(0)  # Asegurarse de que el puntero esté al inicio del archivo
 
     API_KEY = DI_TOKEN
-    API_URL = "https://api.deepinfra.com/v1/inference/openai/whisper-large-v3-turbo"
+    API_URL = "https://api.deepinfra.com/v1/inference/openai/whisper-large-v3"
 
 
     headers = {
