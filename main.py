@@ -34,8 +34,7 @@ from utils.constants import (
 from handlers.delete import delete, confirm_delete_all, delete_all, confirm_delete_by_name, delete_by_name, listening_to_delete_by_name
 from handlers.show import show, show_all, show_today, show_tomorrow, show_week, show_by_name, listening_to_show_by_name
 from handlers.add import add, add_periodic, add_reminder_timer, add_periodic_reminder_timer
-from commands import start, stop, help, error_handler, end_second_level
-from handlers.misc import echo, categorize_and_reply
+from commands import start, stop, help, error_handler, end_second_level, categorize_and_reply
 
 from functions.notifications import notify_next_day_jobs_callback, schedule_daily_notification
 from ptbcontrib.ptb_jobstores.sqlalchemy import PTBSQLAlchemyJobStore
@@ -64,6 +63,7 @@ def main() -> None:
         entry_points= [CommandHandler("start", start), CommandHandler("menu", start)],
         states={
             MENU: [
+                CallbackQueryHandler(start, pattern=f"^{str(MENU)}$"),
                 CallbackQueryHandler(add, pattern=f"^{str(ADD)}$"),
                 CallbackQueryHandler(show, pattern=f"^{str(SHOW)}$"),
                 CallbackQueryHandler(delete, pattern=f"^{str(DELETE)}$"),
@@ -103,6 +103,8 @@ def main() -> None:
             CommandHandler("stop", stop),
             CommandHandler("menu", start),
             CommandHandler("start", start),
+            CommandHandler("new_reminder", add),
+            CommandHandler("new_periodic_reminder", add_periodic),
             CommandHandler("help", help),
             CallbackQueryHandler(end_second_level, pattern=f"^{str(END)}$"),
             # CallbackQueryHandler(start, pattern=f"^{str(MENU)}$"),
@@ -124,3 +126,10 @@ if __name__ == "__main__":
 # - multilanguage support
 # - Add tests
 # - agregar recordatorio semanal los domingos en la noche
+# vincular a google calendar
+
+# Commands
+# menu - Muestra el menú principal de MementoAI
+# new_reminder - Registrar un nuevo recordatorio
+# new_periodic_reminder - Registrar un nuevo recordatorio periódico
+# help - Muestra la ayuda para aprender a utilizar MementoAI

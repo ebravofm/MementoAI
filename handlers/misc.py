@@ -1,60 +1,79 @@
-
-from telegram import Update
+from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.ext import ContextTypes
-
-from handlers.delete import confirm_delete_all, confirm_delete_by_name
-from handlers.show import show_all, show_by_name
-from utils.misc import handle_audio_or_text
-from handlers.add import add_reminder_timer
-from utils.agents import process_prompt
-from utils.logger import logger
-from commands import start
-from utils.constants import (
-    START_OVER,
-    MESSAGE_TEXT,
-    MENU
-)
+from telegram.error import BadRequest
+from telegram import InputMediaPhoto
 
 
-async def categorize_and_reply(update, context):
-    """Categorizes a prompt into three categories."""
+async def send_message(update: Update,
+                       context: ContextTypes.DEFAULT_TYPE,
+                       text: str = None,
+                       media: str = None,
+                       keyboard: InlineKeyboardMarkup = None,
+                       disable_web_page_preview = True,
+                       edit: bool = False,
+                       msg = None,
+                       category = None,
+                       ai_text_id = None):
     
-    await handle_audio_or_text(update, context)
-    query = context.user_data.get(MESSAGE_TEXT)
-
-    response = process_prompt(update, context, query)
+    # logger.info(f"Sending message: {text}")
     
-    logger.info(f"Response: {response}")
+    text = text.encode('utf-8', errors='replace')
+    text = text.decode('utf-8')
     
-    await crossroad(update, context, response)
+    
+    if edit:
+        try:
+            if media:
+                
+                if msg:
+                    media = InputMediaPhoto(media=open(media, 'rb'), caption=text, parse_mode="markdown", disable_web_page_preview=disable_web_page_preview)
+                    msg = await msg.edit_media(media=media, reply_markup=keyboard)
 
-
-async def crossroad(update, context, response):
-
-    if response["category"] == "add_reminder":
-        await add_reminder_timer(update, context)
-                        
-    elif response["category"] == "show":
-        if response["all_reminders"]:
-            await show_all(update, context)
+                else: 
+                    media = InputMediaPhoto(media=open(media, 'rb'), caption=text, parse_mode="markdown")
+                    msg = await update.effective_message.edit_media(media=media, reply_markup=keyboard)
+                
+            else:
+                try:
+                    if msg:
+                        msg = await msg.edit_text(text=text, parse_mode="markdown", disable_web_page_preview=disable_web_page_preview, reply_markup=keyboard)
+                    else:
+                        msg = await update.effective_message.edit_text(text=text, parse_mode="markdown", disable_web_page_preview=disable_web_page_preview, reply_markup=keyboard)
+                except BadRequest:
+                    try:
+                        if msg:
+                            await msg.delete()
+                        else:
+                            await update.effective_message.delete()
+                    except BadRequest:
+                        logger.info("Couldn't delete message")
+                    msg = await context.bot.send_message(chat_id=update.effective_chat.id, text=text, parse_mode="markdown", disable_web_page_preview=disable_web_page_preview, reply_markup=keyboard)
+                    
+        except AttributeError:
+            if media:
+                msg = await context.bot.send_photo(chat_id=update.effective_chat.id, photo=open(media, 'rb'), caption=text, parse_mode="markdown", reply_markup=keyboard)
+            else:
+                msg = await context.bot.send_message(chat_id=update.effective_chat.id, text=text, parse_mode="markdown", disable_web_page_preview=disable_web_page_preview, reply_markup=keyboard)
+                
+    else:
+        if media:
+            msg = await context.bot.send_photo(chat_id=update.effective_chat.id, photo=open(media, 'rb'), caption=text, parse_mode="markdown", reply_markup=keyboard)
         else:
-            await show_by_name(update, context, name=response["reminder_name"])
-
-    elif response["category"] == "delete":
-        if response["all_reminders"]:
-            await confirm_delete_all(update, context)
-        else:
-            await confirm_delete_by_name(update, context)
-                     
-
-async def echo(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Echo the user message."""
-    # await update.message.reply_text(update.message.text)
-    # await context.bot.send_message(update.effective_chat.id, text=update.message.text, parse_mode="markdown")
-    await update.message.reply_text(update.message.text)
-    logger.info(update.message.text)
+            msg = await context.bot.send_message(chat_id=update.effective_chat.id, text=text, parse_mode="markdown", disable_web_page_preview=disable_web_page_preview, reply_markup=keyboard)
+            
+            
+    # msg_data = {
+    #     'tg_msg_id': str(msg.message_id),
+    #     'tg_chat_id': str(msg.chat_id),
+    #     'user_id': str(update.effective_user.id),
+    #     'type': 'sent',
+    #     'category': category,
+    #     'text': text,
+    #     'ai_text_id': ai_text_id
+    # }
     
-    context.user_data[START_OVER] = True
-    await start(update, context)
+    # with get_db() as db:
+    #     create_message(db, MessageCreate(**msg_data))
+        
+    return msg
 
-    return MENU

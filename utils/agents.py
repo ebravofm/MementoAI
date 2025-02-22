@@ -9,14 +9,34 @@ from utils.pydantic_models import CategorizePrompt, AllOrOnePrompt, SelectRemind
 from functions.jobs import filter_jobs, get_job_queue_text
 from utils.misc import reminder_to_text
 from utils.logger import logger
-from config import DI_TOKEN
+from config import DI_TOKEN, OPENAI_TOKEN, DS_TOKEN
 import re
+
+from texts.prompts import (
+    PROMPT_CLASSIFY_ACTION,
+    PROMPT_FORMAT_REMINDER,
+    PROMPT_DECIDE_ALL_OR_ONE,
+    PROMPT_SELECT_REMINDER
+)
 
 # set_debug(True)
 
-model = ChatOpenAI(temperature=0.7, base_url="https://api.deepinfra.com/v1/openai",
-                   api_key=DI_TOKEN,
-                   model='meta-llama/Llama-3.3-70B-Instruct',
+# model = ChatOpenAI(temperature=0.7, base_url="https://api.deepinfra.com/v1/openai",
+#                    api_key=DI_TOKEN,
+#                    model='meta-llama/Llama-3.3-70B-Instruct',
+#                    max_tokens=100)
+
+
+
+# model = ChatOpenAI(temperature=0.7,
+#                    api_key=OPENAI_TOKEN,
+#                    model='gpt-4o-mini',
+#                    max_tokens=100)
+
+
+model = ChatOpenAI(temperature=0.7, base_url="https://api.deepseek.com",
+                   api_key=DS_TOKEN,
+                   model='deepseek-chat',
                    max_tokens=100)
 
 
@@ -24,15 +44,7 @@ def process_prompt(update, context, query):
     # Paso 1: Clasificación General
     general_parser = JsonOutputParser(pydantic_object=CategorizePrompt)
     general_prompt = PromptTemplate(
-        template="""Eres un agente que clasifica prompts en tres categorías:
-        
-0: **Mostrar recordatorios existentes.** El prompt indica consultar o mostrar los recordatorios ya creados.
-1: **Agregar un nuevo recordatorio.** El prompt indica crear un recordatorio con detalles como hora, ubicación o notas.
-2: **Eliminar un recordatorio.** El prompt indica eliminar un recordatorio existente.
-
-Devuelve un número entero entre 0 y 2.
-
-.\n{format_instructions}\n{query}\n""",
+        template=PROMPT_CLASSIFY_ACTION,
         input_variables=["query"],
         partial_variables={"format_instructions": general_parser.get_format_instructions()},
     )
@@ -75,7 +87,7 @@ def reminder_from_prompt(reminder_query: str) -> LogReminder:
     now = datetime.now()
 
     prompt = PromptTemplate(
-        template="Convierte el prompt al formato solicitado. Nota: La fecha y hora de referencia son {formatted_now}.\n{format_instructions}\n{query}\n",
+        template=PROMPT_FORMAT_REMINDER,
         input_variables=["query"],
         partial_variables={"format_instructions": parser.get_format_instructions(), "formatted_now": now.strftime("%Y-%m-%dT%H:%M:%SZ")},
     )
@@ -97,7 +109,7 @@ def periodic_reminder_from_prompt(reminder_query: str) -> DailyReminder:
     now = datetime.now()
 
     prompt = PromptTemplate(
-        template="Convierte el prompt al formato solicitado. Si no se especifican detalles, deja ese campo vacío. \n{format_instructions}\n{query}\n",
+        template=PROMPT_FORMAT_REMINDER,
         input_variables=["query"],
         partial_variables={"format_instructions": parser.get_format_instructions(), "formatted_now": now.strftime("%Y-%m-%dT%H:%M:%SZ")},
     )
@@ -116,11 +128,7 @@ def periodic_reminder_from_prompt(reminder_query: str) -> DailyReminder:
 def decide_all_or_one(query, model, parser):
     """Decide if the action applies to all reminders or one specific reminder."""
     prompt = PromptTemplate(
-        template="""Eres un agente que decide si la acción del usuario aplica a todos los recordatorios o solo a uno.
-        
-Responde `True` si la acción aplica a todos los recordatorios, o `False` si aplica solo a un recordatorio específico.
-
-.\n{format_instructions}\n{query}\n""",
+        template=PROMPT_DECIDE_ALL_OR_ONE,
         input_variables=["query"],
         partial_variables={"format_instructions": parser.get_format_instructions()},
     )
@@ -131,14 +139,7 @@ Responde `True` si la acción aplica a todos los recordatorios, o `False` si apl
 def select_reminder_id(query, reminders_text, model, parser):
     """Selecciona el ID de un recordatorio basado en una lista proporcionada."""
     prompt = PromptTemplate(
-        template="""Eres un agente que selecciona el ID de un recordatorio basado en la solicitud del usuario.
-
-Estos son los recordatorios disponibles con sus IDs:
-{reminders_text}
-
-Devuelve solo el ID numérico correspondiente al recordatorio que el usuario está solicitando.
-
-.\n{format_instructions}\n{query}\n""",
+        template=PROMPT_SELECT_REMINDER,
         input_variables=["query", "reminders_text"],
         partial_variables={"format_instructions": parser.get_format_instructions()},
     )
@@ -149,11 +150,7 @@ Devuelve solo el ID numérico correspondiente al recordatorio que el usuario est
 def decide_all_or_one(query, model, parser):
     """Decide if the action applies to all reminders or one specific reminder."""
     prompt = PromptTemplate(
-        template="""Eres un agente que decide si la acción del usuario aplica a todos los recordatorios o solo a uno.
-        
-Responde `True` si la acción aplica a todos los recordatorios, o `False` si aplica solo a un recordatorio específico.
-
-.\n{format_instructions}\n{query}\n""",
+        template=PROMPT_DECIDE_ALL_OR_ONE,
         input_variables=["query"],
         partial_variables={"format_instructions": parser.get_format_instructions()},
     )
@@ -164,14 +161,7 @@ Responde `True` si la acción aplica a todos los recordatorios, o `False` si apl
 def select_reminder_id(query, reminders_text, model, parser):
     """Selecciona el ID de un recordatorio basado en una lista proporcionada."""
     prompt = PromptTemplate(
-        template="""Eres un agente que selecciona el ID de un recordatorio basado en la solicitud del usuario. Nota: La fecha y hora de referencia son {formatted_now}.
-
-Estos son los recordatorios disponibles con sus IDs en paréntesis cuadrados:
-{reminders_text}
-
-Devuelve solo el ID numérico correspondiente al recordatorio que el usuario está solicitando.
-
-.\n{format_instructions}\n{query}\n""",
+        template=PROMPT_SELECT_REMINDER,
         input_variables=["query", "reminders_text"],
         partial_variables={"format_instructions": parser.get_format_instructions(), "formatted_now": datetime.now().strftime("%Y-%m-%dT%H:%M:%SZ")},
     )

@@ -1,12 +1,13 @@
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.ext import ContextTypes
 
-from utils.misc import cleanup_and_restart, handle_audio_or_text
+from utils.misc import handle_audio_or_text, reminder_to_text
 from utils.agents import reminder_from_prompt, periodic_reminder_from_prompt
-from utils.misc import reminder_to_text
 from functions.notifications import alarm, alarm_minus_30
 from functions.jobs import remove_job_if_exists
 from utils.logger import logger, tz
+from handlers.misc import send_message
+
 from utils.constants import (
     ADD,
     ADD_PERIODIC,
@@ -16,32 +17,43 @@ from utils.constants import (
     MENU
 )
 
+from texts.texts import (
+    TXT_NEW_REMINDER,
+    TXT_BUTTON_PERIODIC_REMINDER,
+    TXT_BUTTON_BACK,
+    TXT_ADD_PERIODIC_REMINDER,
+    TXT_NOT_ABLE_TO_SCHEDULE_PAST,
+    TXT_REMINDER_SCHEDULED,
+    TXT_ERROR,
+    TXT_PROCESSING,
+    TXT_BUTTON_CONTINUE
+)
+
 from datetime import datetime, timedelta
 
 
 async def add(update: Update, context: ContextTypes.DEFAULT_TYPE) -> str:
-    text = "📅 *Nuevo Recordatorio* 📅\n\n¿Qué recordatorio quieres agregar? \[📝/🎙️]\nIncluye fecha, hora y lugar. \n\n_(Si es périódico, selecciona opción correspondiente)_"
+    text = TXT_NEW_REMINDER
     keyboard = InlineKeyboardMarkup([
         [
-        InlineKeyboardButton(text="🕒️ Recordatorio Periódico", callback_data=str(ADD_PERIODIC)),
-        InlineKeyboardButton(text="⬅️ Atrás", callback_data=str(END)),
+        InlineKeyboardButton(text=TXT_BUTTON_PERIODIC_REMINDER, callback_data=str(ADD_PERIODIC)),
+        InlineKeyboardButton(text=TXT_BUTTON_BACK, callback_data=str(END)),
         ]
     ])
-    await update.callback_query.answer()
-    await update.callback_query.edit_message_text(text=text, reply_markup=keyboard, parse_mode="markdown")
+    await send_message(update, context, text=text, keyboard=keyboard, edit=True)
     return ADD
 
 
 async def add_periodic(update: Update, context: ContextTypes.DEFAULT_TYPE) -> str:
-    text = "Por favor, escribe el recordatorio que deseas agregar. \[📝/🎙️]"
+    text = TXT_ADD_PERIODIC_REMINDER
     keyboard = InlineKeyboardMarkup([
         [InlineKeyboardButton(text="Atrás", callback_data=str(END))]
     ])
-    await update.callback_query.edit_message_text(text=text, parse_mode="markdown", reply_markup=keyboard)
+    await send_message(update, context, text=text, keyboard=keyboard, edit=True)
     return LISTENING_PERIODIC_REMINDER
 
 
-@cleanup_and_restart
+# @cleanup_and_restart
 async def add_reminder_timer(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     
     await handle_audio_or_text(update, context)
@@ -51,6 +63,8 @@ async def add_reminder_timer(update: Update, context: ContextTypes.DEFAULT_TYPE)
 
     chat_id = update.effective_chat.id
     # Generate reminder from the text
+    # msg = await update.message.reply_text(TXT_PROCESSING)
+    
     reminder = reminder_from_prompt(query)
     reminder['chat_id'] = chat_id
 
@@ -65,49 +79,48 @@ async def add_reminder_timer(update: Update, context: ContextTypes.DEFAULT_TYPE)
     reminder['run'] = 'once'
     reminder['text'] = reminder_to_text(reminder)
 
-    try:
-        # Calculate the time remaining in seconds
-        now = datetime.now(tz)
-        seconds_until_due = (timer_date - now).total_seconds()
+    # Calculate the time remaining in seconds
+    now = datetime.now(tz)
+    seconds_until_due = (timer_date - now).total_seconds()
 
-        # Check if the time is in the past
-        if seconds_until_due <= 0:
-            await update.effective_message.reply_text("No es posible programar recordatorios en el pasado.")
-            return
+    # Check if the time is in the past
+    if seconds_until_due <= 0:
+        await send_message(update, context, text=TXT_NOT_ABLE_TO_SCHEDULE_PAST, edit=True)
+        return
 
-        # Remove existing jobs with the same name and add the new one
-        job_removed = remove_job_if_exists(timer_name, context)
-        reminder['type'] = 'parent'
+    # Remove existing jobs with the same name and add the new one
+    job_removed = remove_job_if_exists(timer_name, context)
+    reminder['type'] = 'parent'
+    
+    context.job_queue.run_once(
+        alarm,
+        when=timer_date,
+        chat_id=chat_id,
+        name=timer_name,
+        data=reminder,
+    )
+    
+    reminder['type'] = '-30'
+    context.job_queue.run_once(
+        alarm_minus_30,
+        when=timer_date - timedelta(minutes=30),
+        chat_id=chat_id,
+        name=timer_name,
+        data=reminder,
+    )
+
+    # Confirmation message
+    await send_message(update, context, text=TXT_REMINDER_SCHEDULED, edit=True)
+    
+    keyboard = InlineKeyboardMarkup([
+        [InlineKeyboardButton(text=TXT_BUTTON_CONTINUE, callback_data=str(MENU))]
+    ])
+    await send_message(update, context, text=reminder['text'], keyboard=keyboard)
         
-        context.job_queue.run_once(
-            alarm,
-            when=timer_date,
-            chat_id=chat_id,
-            name=timer_name,
-            data=reminder,
-        )
-        
-        reminder['type'] = '-30'
-        context.job_queue.run_once(
-            alarm_minus_30,
-            when=timer_date - timedelta(minutes=30),
-            chat_id=chat_id,
-            name=timer_name,
-            data=reminder,
-        )
-
-        # Confirmation message
-        await update.effective_message.reply_text('Se agendó el siguiente recordatorio:', parse_mode="markdown")
-        await update.effective_message.reply_text(reminder['text'], parse_mode="markdown")
-        
-
-    except (IndexError, ValueError) as e:
-        await update.effective_message.reply_text(f"An error occurred: {str(e)}")
-                
     return MENU
 
 
-@cleanup_and_restart
+# @cleanup_and_restart
 async def add_periodic_reminder_timer(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     
     await handle_audio_or_text(update, context)
@@ -131,27 +144,23 @@ async def add_periodic_reminder_timer(update: Update, context: ContextTypes.DEFA
     reminder['run'] = 'periodic'
     reminder['text'] = reminder_to_text(reminder)
 
-    try:
-        # Remove existing jobs with the same name and add the new one
-        job_removed = remove_job_if_exists(timer_name, context)
-        
-        reminder['type'] = 'parent'
-        context.job_queue.run_daily(
-            alarm,
-            time=timer_date,
-            days=reminder['Days'],
-            chat_id=chat_id,
-            name=timer_name,
-            data=reminder,
-        )
+    # Remove existing jobs with the same name and add the new one
+    job_removed = remove_job_if_exists(timer_name, context)
+    
+    reminder['type'] = 'parent'
+    context.job_queue.run_daily(
+        alarm,
+        time=timer_date,
+        days=reminder['Days'],
+        chat_id=chat_id,
+        name=timer_name,
+        data=reminder,
+    )
 
-        # Confirmation message
-        await update.effective_message.reply_text('Se agendó el siguiente recordatorio:', parse_mode="markdown")
-        await update.effective_message.reply_text(reminder['text'], parse_mode="markdown")
+    # Confirmation message
+    await send_message(update, context, text=TXT_REMINDER_SCHEDULED)
+    await send_message(update, context, text=reminder['text'])
         
 
-    except (IndexError, ValueError) as e:
-        await update.effective_message.reply_text(f"An error occurred: {str(e)}")
-                
     return MENU
 
