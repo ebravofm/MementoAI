@@ -28,7 +28,7 @@ async def notify_next_day_jobs(update, context):
     target_date = datetime.now() + timedelta(days=1)
 
     # Filtrar trabajos para el día específico
-    jobs_for_day = filter_jobs(context, start_date=target_date, end_date=target_date, chat_id=None, job_type='parent')
+    jobs_for_day = filter_jobs(context.job_queue, start_date=target_date, end_date=target_date, chat_id=None, job_type='parent')
 
     # if not jobs_for_day:
     #     await context.bot.send_message(update.effective_chat.id, f"No hay recordatorios programados para {target_date.strftime('%Y-%m-%d')}.")

@@ -2,11 +2,11 @@
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.ext import ContextTypes
 
-from handlers.delete import confirm_delete_all, confirm_delete_by_name
-from handlers.show import show_all, show_by_name
+# from handlers.delete import confirm_delete_all, confirm_delete_by_name
+# from handlers.show import show_all, show_by_name
 from utils.misc import handle_audio_or_text
-from handlers.add import add_reminder_timer
-from utils.agents import process_prompt
+# from handlers.add import add_reminder_timer
+# from utils.agents import process_prompt
 from utils.logger import logger
 
 from utils.constants import (
@@ -32,17 +32,25 @@ from texts.texts import (
     TXT_PROCESSING
 )
 
-from handlers.misc import send_message
+from handlers.misc import send_message, hide_keyboard
 
 
+async def back_to_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Vuelve al menú principal."""
+    
+    return await start(update, context, edit=True)
+
+    
 
 
 # Top level conversation callbacks
-async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> str:
+async def start(update: Update, context: ContextTypes.DEFAULT_TYPE, edit=False):
     """Selecciona una acción: Agregar recordatorio, mostrar recordatorios o eliminar recordatorios."""
     
+    await hide_keyboard(update, context)
+
+    
     full_text = TXT_WELCOME
-    text_then = TXT_WELCOME_2
     buttons = [
         [
             InlineKeyboardButton(text=TXT_BUTTON_NEW_REMINDER, callback_data=str(ADD)),
@@ -54,19 +62,8 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> str:
     ]
     keyboard = InlineKeyboardMarkup(buttons)
 
-    logger.info(context.user_data)
-    if context.user_data.get(START_OVER):
-        if context.user_data.get(START_WITH_NEW_REPLY):
-            await send_message(update, context, text=text_then, keyboard=keyboard)
-        else:
-            await send_message(update, context, text=text_then, keyboard=keyboard)
-    else:
-        logger.info('test1')
-        await send_message(update, context, text=full_text, keyboard=keyboard)
+    await send_message(update, context, text=full_text, keyboard=keyboard, edit=edit)
         
-    context.user_data[START_OVER] = False
-    context.user_data[START_WITH_NEW_REPLY] = False
-    context.user_data[MESSAGE_TEXT] = None
     return MENU
 
 
@@ -112,37 +109,8 @@ async def help(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     
     return MENU
 
-    
-async def crossroad(update, context, response):
 
-    if response["category"] == "add_reminder":
-        await add_reminder_timer(update, context)
-                        
-    elif response["category"] == "show":
-        if response["all_reminders"]:
-            await show_all(update, context)
-        else:
-            await show_by_name(update, context, name=response["reminder_name"])
-
-    elif response["category"] == "delete":
-        if response["all_reminders"]:
-            await confirm_delete_all(update, context)
-        else:
-            await confirm_delete_by_name(update, context)
-                     
-                     
-
-async def categorize_and_reply(update, context):
+async def echo(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Categorizes a prompt into three categories."""
     
-    await send_message(update, context, text=TXT_PROCESSING)
-    
-    await handle_audio_or_text(update, context)
-    query = context.user_data.get(MESSAGE_TEXT)
-
-    response = process_prompt(update, context, query)
-    
-    logger.info(f"Response: {response}")
-    
-    await crossroad(update, context, response)
-
+    await send_message(update, context, text=update.message.text)

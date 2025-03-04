@@ -3,6 +3,21 @@ from telegram.ext import ContextTypes
 from telegram.error import BadRequest
 from telegram import InputMediaPhoto
 
+from texts.texts import (
+    TXT_BUTTON_CONTINUE,
+    TXT_BUTTON_CONFIRM,
+    TXT_BUTTON_CANCEL,
+    TXT_BUTTON_BACK
+)
+from utils.constants import (
+    MENU,
+    CONFIRMED_DELETE_ALL,
+    END,
+    CONFIRMED_DELETE_BY_NAME,
+    BACK
+)
+
+from utils.logger import logger
 
 async def send_message(update: Update,
                        context: ContextTypes.DEFAULT_TYPE,
@@ -11,16 +26,8 @@ async def send_message(update: Update,
                        keyboard: InlineKeyboardMarkup = None,
                        disable_web_page_preview = True,
                        edit: bool = False,
-                       msg = None,
-                       category = None,
-                       ai_text_id = None):
-    
-    # logger.info(f"Sending message: {text}")
-    
-    text = text.encode('utf-8', errors='replace')
-    text = text.decode('utf-8')
-    
-    
+                       msg = None):
+        
     if edit:
         try:
             if media:
@@ -61,19 +68,77 @@ async def send_message(update: Update,
         else:
             msg = await context.bot.send_message(chat_id=update.effective_chat.id, text=text, parse_mode="markdown", disable_web_page_preview=disable_web_page_preview, reply_markup=keyboard)
             
-            
-    # msg_data = {
-    #     'tg_msg_id': str(msg.message_id),
-    #     'tg_chat_id': str(msg.chat_id),
-    #     'user_id': str(update.effective_user.id),
-    #     'type': 'sent',
-    #     'category': category,
-    #     'text': text,
-    #     'ai_text_id': ai_text_id
-    # }
-    
-    # with get_db() as db:
-    #     create_message(db, MessageCreate(**msg_data))
-        
+
     return msg
 
+
+
+async def hide_keyboard(update, context, msg=None, disable_web_page_preview=True):
+    
+    
+    if msg:
+        
+        chat_id=msg.chat_id
+        message_id=msg.message_id
+        text = msg.text_markdown
+        
+        if text:
+            logger.debug(f"Storing to hide keyboard with message: {text}")
+            context.user_data['HIDE_KEYBOARD'] = {'chat_id': chat_id,
+                                                  'message_id': message_id,
+                                                  'text': text}
+    else:
+        msg_info = context.user_data.get('HIDE_KEYBOARD')
+
+        if msg_info:
+
+            try:
+                chat_id = msg_info['chat_id']
+                message_id = msg_info['message_id']
+                text = msg_info['text']
+
+                logger.debug(f"Hiding keyboard with message: {text}")
+                await context.bot.edit_message_text(text=text, chat_id=chat_id, message_id=message_id, parse_mode="markdown", disable_web_page_preview=disable_web_page_preview)
+            except BadRequest as e:
+                logger.debug(f"Couldn't hide keyboard: {e}")
+
+            context.user_data['HIDE_KEYBOARD'] = None
+                
+        else:
+            logger.debug("No message to hide keyboard")
+
+
+
+continue_keyboard = InlineKeyboardMarkup([
+            [InlineKeyboardButton(text=TXT_BUTTON_CONTINUE, callback_data=str(MENU))]
+        ])
+
+confirm_delete_all_keyboard = InlineKeyboardMarkup([
+        [
+            InlineKeyboardButton(text=TXT_BUTTON_CONFIRM, callback_data=str(CONFIRMED_DELETE_ALL)),
+            InlineKeyboardButton(text=TXT_BUTTON_CANCEL, callback_data=str(END)),
+        ]
+    ])
+
+confirm_delete_by_id_keyboard = InlineKeyboardMarkup([
+        [
+            InlineKeyboardButton(text=TXT_BUTTON_CONFIRM, callback_data=str(CONFIRMED_DELETE_BY_NAME)),
+            InlineKeyboardButton(text=TXT_BUTTON_CANCEL, callback_data=str(END)),
+        ]
+    ])
+
+back_keyboard = InlineKeyboardMarkup([
+        [
+        InlineKeyboardButton(text=TXT_BUTTON_BACK, callback_data=str(BACK)),
+        ]
+    ])
+
+
+tool_keyboards = {
+    'show_reminders': continue_keyboard,
+    'show_specific_reminder': continue_keyboard,
+    'add_reminder': continue_keyboard,
+    'add_periodic_reminder': continue_keyboard,
+    'delete_by_id': confirm_delete_by_id_keyboard,
+    'delete_all': confirm_delete_all_keyboard
+}

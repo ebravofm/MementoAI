@@ -1,6 +1,6 @@
 from telegram.ext import ConversationHandler
 
-states = [chr(i) for i in range(24)]
+states = [chr(i) for i in range(25)]
 (
     MENU, 
     ADD, 
@@ -25,7 +25,8 @@ states = [chr(i) for i in range(24)]
     START_OVER, 
     START_WITH_NEW_REPLY, 
     STOPPING, 
-    MESSAGE_TEXT
+    MESSAGE_TEXT,
+    BACK
 ) = states
 
 END = ConversationHandler.END

@@ -9,3 +9,11 @@ PROMPT_CLASSIFY_ACTION = """Eres un agente que clasifica prompts en tres categor
 1: **Agregar un nuevo recordatorio.** El prompt indica crear un recordatorio con detalles como hora, ubicación o notas.
 2: **Eliminar un recordatorio.** El prompt indica eliminar un recordatorio existente.
 Devuelve un número entero entre 0 y 2.\n\n{format_instructions}\n{query}\n"""
+
+
+
+TXT_MENU_AGENT_SYSTEM_PROMPT = "Eres un sistema de recordatorios. Solo puedes programar recordatorios en el futuro. Nota: La fecha y hora actuales son {now}\n\nInput del usuario: '{user_input}'"
+
+TXT_CHOOSE_ANSWER_PROMPT = 'System: Un usuario ha hecho la siguiente pregunta "{user_input}" para la cual el asistente virtual a generado las siguientes posibles respuestas: \n\n{options}\n\n ¿Cuál respuesta consideras que es la más adecuada? Responde unicamente con el indice correspnndiente a lap regunta correcta. \n\Assistant: El indice de la respuesta correcta es: '
+
+TXT_DELETE_AGENT_SYSTEM_PROMPT = "Eres un sistema que borra recordatorios. El usuario ha solicitado borrar un recordatorio. Nota: La fecha y hora actuales son {now}\n\nInput del usuario: '{user_input}'"

@@ -8,10 +8,20 @@ from sqlalchemy.orm import sessionmaker
 from datetime import datetime
 import pickle
 
+from collections import defaultdict
+from texts.texts import (
+    TXT_SHOW_ALL_HEADER,
+    TXT_PERIODIC_REMINDERS,
+    TXT_DAYS_OF_WEEK,
+    TXT_PERIODIC_REMINDERS_DAYS
+)
 
-def filter_jobs(context, start_date: datetime = None, end_date: datetime = None, chat_id: int = None, job_type: str = 'parent', name: str = None) -> list:
+from utils.logger import logger
+
+
+def filter_jobs(job_queue, start_date: datetime = None, end_date: datetime = None, chat_id: int = None, job_type: str = 'parent', job_name: str = None, job_id: str = None) -> list:
     """
-    Filtra los trabajos según un rango de fechas, chat_id, tipo de trabajo y nombre de trabajo.
+    Filtra los trabajos según un rango de fechas, chat_id, tipo de trabajo, nombre de trabajo y job_id.
 
     :param context: Contexto del bot.
     :param start_date: Fecha inicial para el filtro (inclusive). Opcional.
@@ -19,9 +29,10 @@ def filter_jobs(context, start_date: datetime = None, end_date: datetime = None,
     :param chat_id: ID del chat para el filtro. Opcional.
     :param job_type: Tipo de trabajo para el filtro. Opcional, por defecto None.
     :param name: Nombre del trabajo para el filtro. Opcional.
+    :param job_id: ID del trabajo para el filtro. Opcional.
     :return: Lista de trabajos que cumplen con los criterios de filtro.
     """
-    jobs = context.job_queue.jobs()
+    jobs = job_queue.jobs()
     filtered_jobs = [
         job for job in jobs
         if job.data is not None and
@@ -29,9 +40,45 @@ def filter_jobs(context, start_date: datetime = None, end_date: datetime = None,
         (end_date is None or job.next_run_time.date() <= end_date.date()) and
         (chat_id is None or job.data['chat_id'] == chat_id) and
         (job_type is None or job.data.get('type') == job_type) and
-        (name is None or name in job.name)
+        (job_name is None or job_name in job.name) and
+        (job_id is None or job.id.endswith(job_id))  # Filtra por los últimos 5 caracteres de job.id
     ]
     return filtered_jobs
+
+
+def print_jobs(jobs, show_periodic=False):
+    # Agrupar trabajos por día
+    header=TXT_SHOW_ALL_HEADER
+    
+    jobs_by_day = defaultdict(list)
+    for job in jobs:
+        if job.data and "Time" in job.data and "Title" in job.data:
+            job_day = job.next_run_time.date()
+            jobs_by_day[job_day].append(job)
+
+    # Formatear la lista de trabajos por día
+    message = f"📅 *{header}* 📅:\n"
+    for day, jobs_ in sorted(jobs_by_day.items()):
+        day_str = day.strftime("%A %d/%B") 
+        day_str = day_str.title()
+        message += f"\n*{day_str}*:\n"
+        message += "\n".join(
+            [f"    {job.data['Time'].strftime('%H:%M')}: {job.data['Title']}" for job in jobs_]
+        )
+        message += "\n"
+        
+    # Mostrar recordatorios periódicos
+    if show_periodic and any(job.data['run'] == 'periodic' for job in jobs):
+        days_of_week = TXT_DAYS_OF_WEEK
+        message += "\n\n"+TXT_PERIODIC_REMINDERS+"\n"
+        logger.info(jobs)
+        for job in jobs:
+            if job.data['run'] == 'periodic':
+                logger.info(job.data)
+                days = ", ".join(days_of_week[day] for day in job.data['Days']) if len(job.data['Days']) < 7 else TXT_PERIODIC_REMINDERS_DAYS
+                message += f"\n    *• {job.data['Title']}* ({days} a las {job.data['Time'].strftime('%H:%M')})"
+                
+    return message
 
 
 def remove_job_if_exists(name: str, context: ContextTypes.DEFAULT_TYPE) -> bool:
@@ -95,7 +142,7 @@ def get_jobs_from_db():
 
 
 def get_job_queue_text(update, context):
-    jobs = filter_jobs(context, start_date=None, end_date=None, chat_id=update.message.chat_id, job_type='parent')
+    jobs = filter_jobs(context.job_queue, start_date=None, end_date=None, chat_id=update.message.chat_id, job_type='parent')
     text = ""
     for i, job in enumerate(jobs):
         text += f'[{i}]' + reminder_to_text(job.data) + "\n"

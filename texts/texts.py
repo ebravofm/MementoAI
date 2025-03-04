@@ -64,7 +64,7 @@ TXT_BUTTON_CONTINUE = "Continuar"
 TXT_STOP = "Ok, nos vemos!."
 
 
-TXT_NEW_REMINDER = "📅 *Nuevo Recordatorio* 📅\n\n¿Qué recordatorio quieres agregar? \[📝/🎙️]\nIncluye fecha, hora y lugar. \n\n_(Si es périódico, selecciona opción correspondiente)_"
+TXT_NEW_REMINDER = "📅 *Nuevo Recordatorio* 📅\n\n¿Qué recordatorio quieres agregar? \[📝/🎙️]\nIncluye fecha, hora y lugar."
 
 TXT_ADD_PERIODIC_REMINDER = "🔄 *Recordatorio Periódico* 🔄\n\nPor favor, escribe el recordatorio que deseas agregar. \[📝/🎙️]"
 
@@ -90,7 +90,7 @@ TXT_ALL_REMINDERS_DELETED = "🗑️ *Todos los recordatorios han sido eliminado
 
 TXT_NO_REMINDER_FOUND = "ℹ️ *No se encontró el recordatorio '{name}'* ℹ️"
 
-TXT_CONFIRM_DELETE_BY_NAME = "❌ *Eliminar recordatorio* ❌\n\n¿Estás seguro de que deseas eliminar el siguiente recordatorio?"
+TXT_CONFIRM_DELETE_BY_NAME = "❌ *Eliminar recordatorio* ❌\n\n¿Estás seguro de que deseas eliminar el siguiente recordatorio?\n\n*{name}*"
 
 TXT_REMINDER_DELETED = "El recordatorio *{name}* ha sido eliminado."
 
@@ -129,3 +129,5 @@ TXT_REMINDER_LOCATION = "\n*Ubicación*: {LOCATION}"
 TXT_REMINDER_DETAILS = "\n*Detalle*: {DETAILS}"
 TXT_REMINDER_DAYS = "\n*Días*: {DAYS}"
 TXT_PERIODIC_REMINDER_TITLE = "\n*Evento*: {TITLE} (Periódico)"
+
+TXT_NO_TOOL_FOUND = "Disculpa, no tengo herramientas para lo que pides. Vuelve al menú principal e inténtalo denuevo."
